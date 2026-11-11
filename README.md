@@ -9,3 +9,17 @@ You need Git installed and a GitHub account with authorized access to this priva
 git clone https://github.com/dt665m/malorytest.git
 cd malorytest
 ```
+
+## FAQ
+
+### What tools do I need to get started?
+
+You need Git to clone the repository. No runtime is needed for the README-only `main` branch.
+
+### Why can't I clone the repository?
+
+This repository is private. Your GitHub account needs repository access, and Git must authenticate with that account. See [GitHub's clone troubleshooting guide](https://docs.github.com/en/repositories/creating-and-managing-repositories/troubleshooting-cloning-errors).
+
+### Where are the scripts?
+
+Scripts are proposed in [open pull requests](https://github.com/dt665m/malorytest/pulls); they have not landed on `main`. Check each pull request's files and instructions before trying its proposed code.
