@@ -1,6 +1,6 @@
 # Changelog
 
-## Snapshot — 2026-11-11, 12:18:33 UTC
+## Snapshot — 2026-11-11, 12:18:55 UTC
 
 Default branch: `main` at [`3f66b18bcd6f6fb063d8dddfbe3cc183aa10126a`](https://github.com/dt665m/malorytest/tree/3f66b18bcd6f6fb063d8dddfbe3cc183aa10126a).
 This records repository history, script sources, and all open/closed PRs checked at the snapshot time, not a release. Statuses may change afterward; script links below pin the inspected source commits.
@@ -19,7 +19,7 @@ No scripts have landed. The only commit is the initial commit, and its tree cont
 | [`countdown.py`](https://github.com/dt665m/malorytest/blob/63ba8e92b918630440bdf7eee2deb1d2266ca08c/countdown.py) | Counts down from 10 to 1, then prints `Liftoff`. | [Issue #17](https://github.com/dt665m/malorytest/issues/17); open [PR #20](https://github.com/dt665m/malorytest/pull/20). |
 | [`dice.py`](https://github.com/dt665m/malorytest/blob/c033d5343768af1b286d3f108433903fc0583bdd/dice.py) | Rolls two six-sided dice and prints their total. | [Issue #21](https://github.com/dt665m/malorytest/issues/21); open [PR #24](https://github.com/dt665m/malorytest/pull/24). |
 | [`temperature.py`](https://github.com/dt665m/malorytest/blob/b177783ea1b9aa4bdaa21139ac7cdb97a3cb5165/temperature.py) | Converts a Celsius command-line argument to Fahrenheit. | [Issue #23](https://github.com/dt665m/malorytest/issues/23); open [PR #26](https://github.com/dt665m/malorytest/pull/26). |
-| [`wordcount.py`](https://github.com/dt665m/malorytest/blob/19da4c1b142be2e31883009d610afcd19e21a1ee/wordcount.py) | Counts whitespace-delimited words in a UTF-8 text file supplied as an argument. | [Issue #27](https://github.com/dt665m/malorytest/issues/27): in progress on `issue-27-add-wordcount-script`; no PR at snapshot. |
+| [`wordcount.py`](https://github.com/dt665m/malorytest/blob/19da4c1b142be2e31883009d610afcd19e21a1ee/wordcount.py) | Counts whitespace-delimited words in a UTF-8 text file supplied as an argument. | [Issue #27](https://github.com/dt665m/malorytest/issues/27); open [PR #31](https://github.com/dt665m/malorytest/pull/31). |
 | [`passwordgen.py`](https://github.com/dt665m/malorytest/blob/520ebeb4758470cdef035282e155f1117311c47c/passwordgen.py) | Prints a random 16-character alphanumeric password using `secrets.choice`. | [Issue #28](https://github.com/dt665m/malorytest/issues/28); open [PR #30](https://github.com/dt665m/malorytest/pull/30). |
 
 ### Pending extensions — not additional scripts
