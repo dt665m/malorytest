@@ -1,6 +1,10 @@
 # malorytest
 Malory demo test repository
 
+## Project Goals
+
+Serve as a small demo and test repository for Malory. The current `main` branch is README-only; proposed scripts are not yet part of it.
+
 ## Getting Started
 
 You need Git installed and a GitHub account with authorized access to this private repository. Configure [HTTPS authentication](https://docs.github.com/en/get-started/git-basics/caching-your-github-credentials-in-git) before cloning; keep credentials out of the clone URL.
