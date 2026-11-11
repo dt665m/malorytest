@@ -19,11 +19,8 @@ Expected output:
 Hello from Malory
 ```
 
-**Note:** `hello.py` is not yet present on `main`. These instructions apply
-once the hello-script change has been merged, or on a branch containing it.
-If Python reports that `hello.py` cannot be found, check that you are in the
-repository root and that your branch contains the script. Optional flags are
-not documented here because they are not yet available on `main`.
+**Note:** `main` does not yet contain `hello.py`. Run this example only after
+the hello-script change lands, or on a branch containing it.
 
 ## Propose a change
 
