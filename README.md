@@ -34,3 +34,12 @@ Scripts are proposed in [open pull requests](https://github.com/dt665m/malorytes
 2. Make your change, review the diff, and run any relevant checks.
 3. Commit your change and push your branch: `git push -u origin your-change`.
 4. Open a pull request targeting `main`, describing the change and how you validated it.
+
+## Support
+
+For questions or bug reports, [open a GitHub issue](https://github.com/dt665m/malorytest/issues) in this repository. Include:
+
+- A clear title and a description of your question or problem.
+- For bugs, steps to reproduce, expected behavior, and actual behavior.
+- Relevant environment details, such as your operating system and tool versions.
+- Relevant logs, error messages, or screenshots, with secrets and personal information removed.
