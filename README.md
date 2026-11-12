@@ -27,3 +27,10 @@ This repository is private. Your GitHub account needs repository access, and Git
 ### Where are the scripts?
 
 Scripts are proposed in [open pull requests](https://github.com/dt665m/malorytest/pulls); they have not landed on `main`. Check each pull request's files and instructions before trying its proposed code.
+
+## Contributing
+
+1. Start from up-to-date `main` and create a branch: `git switch -c your-change`.
+2. Make your change, review the diff, and run any relevant checks.
+3. Commit your change and push your branch: `git push -u origin your-change`.
+4. Open a pull request targeting `main`, describing the change and how you validated it.
