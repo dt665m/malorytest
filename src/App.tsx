@@ -57,5 +57,10 @@ export default function App() {
     };
   }, []);
 
-  return <canvas ref={canvasRef} role="img" aria-label="A rotating blue cube" />;
+  return (
+    <>
+      <canvas ref={canvasRef} role="img" aria-label="A rotating blue cube" />
+      <footer>Built live by Malory.</footer>
+    </>
+  );
 }
