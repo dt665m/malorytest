@@ -6,6 +6,8 @@ export default function App() {
   const [completedRotations, setCompletedRotations] = useState(0);
   const [isLight, setIsLight] = useState(false);
   const updateThemeRef = useRef<((light: boolean) => void) | null>(null);
+  const [isSphere, setIsSphere] = useState(false);
+  const toggleShapeRef = useRef<(() => boolean) | null>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current!;
@@ -17,11 +19,12 @@ export default function App() {
     camera.position.z = 5;
 
     const geometry = new THREE.BoxGeometry();
+    const sphereGeometry = new THREE.SphereGeometry(0.7, 32, 24);
     // BoxGeometry material order: +X, -X, +Y, -Y, +Z, -Z.
     const materials = ['#246bff', '#ef4444', '#22c55e', '#facc15', '#a855f7', '#f97316'].map(
       (color) => new THREE.MeshStandardMaterial({ color }),
     );
-    const cube = new THREE.Mesh(geometry, materials);
+    const cube: THREE.Mesh = new THREE.Mesh(geometry, materials);
     cube.rotation.set(0.4, 0.5, 0);
     // Keep hover scaling independent of the cube's own animation transforms.
     const hoverGroup = new THREE.Group();
@@ -108,6 +111,18 @@ export default function App() {
     resize();
     window.addEventListener('resize', resize);
 
+    // Keep the label in sync if Fast Refresh recreates the scene.
+    setIsSphere(false);
+    // Swap only geometry/material, preserving all animation transforms and timing.
+    toggleShapeRef.current = () => {
+      const nextIsSphere = cube.geometry === geometry;
+      cube.geometry = nextIsSphere ? sphereGeometry : geometry;
+      cube.material = nextIsSphere ? materials[0] : materials;
+      // Recheck hover against the new geometry, even with a stationary pointer.
+      render();
+      return nextIsSphere;
+    };
+
     const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
     const start = performance.now();
     let lastCompletedRotations = 0;
@@ -135,6 +150,7 @@ export default function App() {
 
     return () => {
       updateThemeRef.current = null;
+      toggleShapeRef.current = null;
       renderer.setAnimationLoop(null);
       window.removeEventListener('resize', resize);
       canvas.removeEventListener('pointermove', movePointer);
@@ -145,6 +161,7 @@ export default function App() {
       starGeometry.dispose();
       starMaterial.dispose();
       geometry.dispose();
+      sphereGeometry.dispose();
       materials.forEach((material) => material.dispose());
       renderer.dispose();
     };
@@ -156,7 +173,11 @@ export default function App() {
 
   return (
     <div className={`app ${isLight ? 'theme-light' : 'theme-dark'}`}>
-      <canvas ref={canvasRef} role="img" aria-label="A rotating cube with six differently colored faces" />
+      <canvas
+        ref={canvasRef}
+        role="img"
+        aria-label={isSphere ? 'A rotating blue sphere' : 'A rotating cube with six differently colored faces'}
+      />
       <output className="rotation-counter">
         <strong>{completedRotations}</strong> full Y-axis rotations
       </output>
@@ -168,6 +189,16 @@ export default function App() {
         onClick={() => setIsLight((light) => !light)}
       >
         {isLight ? 'Theme: Light' : 'Theme: Dark'}
+      </button>
+      <button
+        className="shape-toggle"
+        type="button"
+        onClick={() => {
+          const nextIsSphere = toggleShapeRef.current?.();
+          if (nextIsSphere !== undefined) setIsSphere(nextIsSphere);
+        }}
+      >
+        {isSphere ? 'Change to cube' : 'Change to sphere'}
       </button>
     </div>
   );

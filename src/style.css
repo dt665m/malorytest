@@ -54,6 +54,30 @@ canvas {
   outline-offset: 3px;
 }
 
+.shape-toggle {
+  position: absolute;
+  top: calc(76% + 2.5rem);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0.6rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: var(--surface);
+  color: var(--text);
+  font: 1rem/1.5 system-ui, sans-serif;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.shape-toggle:hover {
+  border-color: var(--text);
+}
+
+.shape-toggle:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 4px;
+}
+
 .rotation-counter {
   position: absolute;
   top: 76%;
