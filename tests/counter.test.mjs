@@ -648,6 +648,35 @@ test('shape toggle renders immediately with reduced motion and survives resizing
   assert.equal(app.renderer.renderCount, draws, 'unmounted control cannot use disposed resources');
 });
 
+test('drag hit-testing respects selected size and size changes preserve manual rotation', () => {
+  for (const reducedMotion of [false, true]) {
+    const app = mount(reducedMotion);
+    app.setSize('Small');
+    const initial = app.cube.rotation.clone();
+    app.dispatch('pointerdown', { clientX: 500 });
+    assert.equal(app.captures.size, 0, 'outside the small cube');
+    app.setSize('Large');
+    app.dispatch('pointerdown', { clientX: 500 });
+    assert.ok(app.captures.has(1), 'same point is inside the large cube');
+    app.dispatch('pointermove', { clientX: 550, clientY: 350 });
+    assert.ok(Math.abs(app.cube.rotation.y - initial.y - 0.5) < 1e-10);
+    assert.ok(Math.abs(app.cube.rotation.x - initial.x - 0.2) < 1e-10);
+    const rotated = app.cube.rotation.clone();
+    app.setSize('Small');
+    assert.equal(app.cube.scale.x, 0.65);
+    assert.ok(app.cube.rotation.equals(rotated), 'changing size does not reset manual rotation');
+    assert.ok(app.captures.has(1), 'size changes do not interrupt an active drag');
+    app.dispatch('pointerup');
+    app.setSize('Medium');
+    app.frame(2);
+    assert.equal(app.cube.scale.x, 1);
+    assert.ok(Math.abs(app.cube.rotation.y - (reducedMotion ? 1 : 2)) < 1e-10,
+      'manual offset survives size changes and subsequent animation');
+    app.unmount();
+    assert.equal(app.listeners.size, 0);
+  }
+});
+
 test('mouse dragging rotates both axes, keeps offsets after release, and leaves automatic counts intact', () => {
   const app = mount();
   app.frame(2);
