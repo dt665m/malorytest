@@ -4,6 +4,8 @@ import * as THREE from 'three';
 export default function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [completedRotations, setCompletedRotations] = useState(0);
+  const [isLight, setIsLight] = useState(false);
+  const updateThemeRef = useRef<((light: boolean) => void) | null>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current!;
@@ -43,6 +45,13 @@ export default function App() {
     const stars = new THREE.Points(starGeometry, starMaterial);
     stars.position.z = -5;
     scene.add(stars);
+
+    // Update the existing scene, without resetting animation or the counter.
+    updateThemeRef.current = (light) => {
+      scene.background = new THREE.Color(light ? '#eef2f7' : '#111318');
+      starMaterial.color.set(light ? '#64748b' : '#ffffff');
+      renderer.render(scene, camera);
+    };
 
     const resize = () => {
       const { clientWidth: width, clientHeight: height } = canvas;
@@ -85,6 +94,7 @@ export default function App() {
     motion.addEventListener('change', updateMotion);
 
     return () => {
+      updateThemeRef.current = null;
       renderer.setAnimationLoop(null);
       window.removeEventListener('resize', resize);
       motion.removeEventListener('change', updateMotion);
@@ -96,12 +106,25 @@ export default function App() {
     };
   }, []);
 
+  useEffect(() => {
+    updateThemeRef.current?.(isLight);
+  }, [isLight]);
+
   return (
-    <>
+    <div className={`app ${isLight ? 'theme-light' : 'theme-dark'}`}>
       <canvas ref={canvasRef} role="img" aria-label="A rotating cube with six differently colored faces" />
       <output className="rotation-counter">
         <strong>{completedRotations}</strong> full Y-axis rotations
       </output>
-    </>
+      <button
+        type="button"
+        className="theme-toggle"
+        aria-label="Light theme"
+        aria-pressed={isLight}
+        onClick={() => setIsLight((light) => !light)}
+      >
+        {isLight ? 'Theme: Light' : 'Theme: Dark'}
+      </button>
+    </div>
   );
 }
