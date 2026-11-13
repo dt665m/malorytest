@@ -103,6 +103,21 @@ canvas {
   pointer-events: none;
 }
 
+.rotation-angle {
+  position: absolute;
+  top: max(1rem, env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  background: var(--surface);
+  color: var(--text);
+  font: 1rem/1.5 system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
 .size-controls {
   position: absolute;
   top: max(1rem, env(safe-area-inset-top));
@@ -136,8 +151,14 @@ canvas {
   outline-offset: 3px;
 }
 
+@media (max-width: 768px) {
+  .rotation-angle {
+    top: calc(max(1rem, env(safe-area-inset-top)) + 3.75rem);
+  }
+}
+
 @media (max-width: 480px) {
   .size-controls {
-    top: calc(max(1rem, env(safe-area-inset-top)) + 3.75rem);
+    top: calc(max(1rem, env(safe-area-inset-top)) + 7.5rem);
   }
 }

@@ -4,6 +4,9 @@ import * as THREE from 'three';
 const cubeSizes = { Small: 0.65, Medium: 1, Large: 1.4 };
 type CubeSize = keyof typeof cubeSizes;
 
+const rotationLabel = (radians: number) =>
+  `Y rotation: ${Math.round(THREE.MathUtils.euclideanModulo(THREE.MathUtils.radToDeg(radians), 360)) % 360}°`;
+
 export default function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [completedRotations, setCompletedRotations] = useState(0);
@@ -14,6 +17,7 @@ export default function App() {
   const [cubeSize, setCubeSize] = useState<CubeSize>('Medium');
   const updateSizeRef = useRef<((size: CubeSize) => void) | null>(null);
   const [fps, setFps] = useState(0);
+  const rotationAngleRef = useRef<HTMLOutputElement>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current!;
@@ -115,6 +119,11 @@ export default function App() {
         hoverGroup.position.copy(cube.position).multiplyScalar(1 - 1.08);
       }
       canvas.style.cursor = drag ? 'grabbing' : hovered ? 'grab' : '';
+      // Read the actual orientation, including initial tilt and manual dragging.
+      // Update only this text node, without rerendering React on animation frames.
+      const angleOutput = rotationAngleRef.current;
+      const label = rotationLabel(cube.rotation.y);
+      if (angleOutput && angleOutput.textContent !== label) angleOutput.textContent = label;
       renderer.render(scene, camera);
     };
     const movePointer = (event: PointerEvent) => {
@@ -340,6 +349,9 @@ export default function App() {
       </div>
       <output className="fps-counter" aria-label="Frames per second" aria-live="off">
         {fps} FPS
+      </output>
+      <output className="rotation-angle" ref={rotationAngleRef} aria-live="off">
+        {rotationLabel(0.5)}
       </output>
     </div>
   );
