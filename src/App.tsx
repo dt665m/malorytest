@@ -14,8 +14,11 @@ export default function App() {
     camera.position.z = 5;
 
     const geometry = new THREE.BoxGeometry();
-    const material = new THREE.MeshStandardMaterial({ color: '#246bff' });
-    const cube = new THREE.Mesh(geometry, material);
+    // BoxGeometry material order: +X, -X, +Y, -Y, +Z, -Z.
+    const materials = ['#246bff', '#ef4444', '#22c55e', '#facc15', '#a855f7', '#f97316'].map(
+      (color) => new THREE.MeshStandardMaterial({ color }),
+    );
+    const cube = new THREE.Mesh(geometry, materials);
     cube.rotation.set(0.4, 0.5, 0);
     scene.add(cube, new THREE.HemisphereLight(0xffffff, 0x334155, 2));
     const light = new THREE.DirectionalLight(0xffffff, 3);
@@ -52,10 +55,10 @@ export default function App() {
       window.removeEventListener('resize', resize);
       motion.removeEventListener('change', updateMotion);
       geometry.dispose();
-      material.dispose();
+      materials.forEach((material) => material.dispose());
       renderer.dispose();
     };
   }, []);
 
-  return <canvas ref={canvasRef} role="img" aria-label="A rotating blue cube" />;
+  return <canvas ref={canvasRef} role="img" aria-label="A rotating cube with six differently colored faces" />;
 }
