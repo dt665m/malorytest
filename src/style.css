@@ -8,8 +8,71 @@ body,
   background: #111318;
 }
 
+body {
+  color: #f8fafc;
+  font-family: system-ui, sans-serif;
+}
+
+.demo {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
 canvas {
   display: block;
   width: 100%;
   height: 100%;
+}
+
+.demo-header {
+  position: absolute;
+  inset: 0 0 auto;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: clamp(1rem, 3vw, 2.5rem);
+  pointer-events: none;
+}
+
+h1 {
+  margin: 0;
+  max-width: 20ch;
+  font-size: clamp(1.5rem, 4vw, 3rem);
+  line-height: 1.15;
+  text-wrap: balance;
+}
+
+.clock {
+  flex-shrink: 0;
+  font-size: clamp(0.875rem, 2vw, 1.125rem);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.rotation-toggle {
+  position: absolute;
+  bottom: clamp(1.5rem, 10vh, 6rem);
+  left: 50%;
+  transform: translateX(-50%);
+  min-height: 2.75rem;
+  padding: 0.75rem 1.5rem;
+  border: 1px solid #ff7a00;
+  border-radius: 0.5rem;
+  background: #ff7a00;
+  color: #111318;
+  font: inherit;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.rotation-toggle:hover {
+  background: #ff9633;
+}
+
+.rotation-toggle:focus-visible {
+  outline: 3px solid #f8fafc;
+  outline-offset: 4px;
 }
