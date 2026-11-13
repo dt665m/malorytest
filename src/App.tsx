@@ -8,7 +8,7 @@ export default function App() {
     const canvas = canvasRef.current!;
     const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color('#0b132b');
+    scene.background = new THREE.Color('#111318');
 
     const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
     camera.position.z = 5;
@@ -57,10 +57,5 @@ export default function App() {
     };
   }, []);
 
-  return (
-    <>
-      <canvas ref={canvasRef} role="img" aria-label="A rotating blue cube" />
-      <footer>Built live by Malory.</footer>
-    </>
-  );
+  return <canvas ref={canvasRef} role="img" aria-label="A rotating blue cube" />;
 }

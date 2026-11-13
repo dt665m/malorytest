@@ -5,22 +5,11 @@ body,
   height: 100%;
   margin: 0;
   overflow: hidden;
-  background: #0b132b;
+  background: #111318;
 }
 
 canvas {
   display: block;
   width: 100%;
   height: 100%;
-}
-
-footer {
-  position: fixed;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  padding: 16px;
-  color: #a3adbd;
-  font: 12px/1.5 system-ui, sans-serif;
-  text-align: center;
 }
