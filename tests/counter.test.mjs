@@ -22,7 +22,14 @@ function mount(reducedMotion = false) {
   let cube;
   const counts = [];
   const listeners = new Map();
-  const canvas = { clientWidth: 800, clientHeight: 600 };
+  const canvas = {
+    clientWidth: 800, clientHeight: 600,
+    getBoundingClientRect() {
+      return { left: 20, top: 30, width: this.clientWidth, height: this.clientHeight };
+    },
+    addEventListener: (name, callback) => listeners.set('canvas:' + name, callback),
+    removeEventListener: (name) => listeners.delete('canvas:' + name),
+  };
   const motion = {
     matches: reducedMotion,
     addEventListener: (name, callback) => listeners.set('motion:' + name, callback),
@@ -38,31 +45,30 @@ function mount(reducedMotion = false) {
     setAnimationLoop(callback) { loop = callback; }
     setPixelRatio() {}
     setSize(width, height) { this.size = [width, height]; }
-    render(scene) { this.scene = scene; }
+    render(scene) { this.scene = scene; scene.updateMatrixWorld(); }
   }
   const renderer = new Renderer();
-  const camera = { fov: 45, position: {}, updateProjectionMatrix() {} };
+  const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
   const three = {
     ...THREE,
     WebGLRenderer: function () { return renderer; },
-    Scene: class {
-      children = [];
-      add(...objects) { this.children.push(...objects); }
-    },
     PerspectiveCamera: function () { return camera; },
-    BoxGeometry: Resource,
-    MeshStandardMaterial: Resource,
-    Mesh: class {
+    BoxGeometry: class extends THREE.BoxGeometry {
+      disposed = false;
+      constructor() { super(); resources.push(this); }
+      dispose() { this.disposed = true; super.dispose(); }
+    },
+    MeshStandardMaterial: class extends THREE.MeshStandardMaterial {
+      disposed = false;
+      constructor(options) { super(options); this.options = options; resources.push(this); }
+      dispose() { this.disposed = true; super.dispose(); }
+    },
+    Mesh: class extends THREE.Mesh {
       constructor(geometry, materials) {
-        this.geometry = geometry;
-        this.material = materials;
+        super(geometry, materials);
         cube = this;
-        this.position = new THREE.Vector3();
-        this.rotation = { set(x, y, z) { Object.assign(this, { x, y, z }); } };
       }
     },
-    HemisphereLight: class {},
-    DirectionalLight: class { position = { set() {} }; },
   };
   const module = { exports: {} };
   const jsx = (type, props) => ({ type, props });
@@ -118,6 +124,10 @@ function mount(reducedMotion = false) {
     counts, cube, renderer, camera, resources, listeners,
     get tree() { return tree; },
     toggleTheme() { tree.props.children[2].props.onClick(); render(); },
+    pointer(x, y, pointerType = 'mouse') {
+      listeners.get('canvas:pointermove')({ clientX: x, clientY: y, pointerType });
+    },
+    leave() { listeners.get('canvas:pointerleave')(); },
     frame(seconds) { loop?.(1000 + seconds * 1000); },
     motion(matches) {
       motion.matches = matches;
@@ -146,6 +156,9 @@ test('theme toggle updates colors without resetting the scene or animation, incl
     const rotation = app.cube.rotation.y;
     const height = app.cube.position.y;
     const counts = [...app.counts];
+    app.pointer(420, 330);
+    assert.equal(app.cube.parent.scale.x, 1.08);
+    const worldPosition = app.cube.getWorldPosition(new THREE.Vector3());
     app.toggleTheme();
     assert.equal(button().props['aria-pressed'], true);
     assert.equal(app.tree.props.className, 'app theme-light');
@@ -156,7 +169,11 @@ test('theme toggle updates colors without resetting the scene or animation, incl
     assert.equal(app.cube.position.y, height, 'theme changes preserve bounce position');
     assert.deepEqual(app.counts, counts);
     assert.equal(app.running, !reducedMotion);
+    assert.equal(app.cube.parent.scale.x, 1.08, 'light theme redraw preserves hover');
+    assert.ok(app.cube.getWorldPosition(new THREE.Vector3()).distanceTo(worldPosition) < 1e-10,
+      'theme redraw preserves the hovered cube center');
     app.toggleTheme();
+    assert.equal(app.cube.parent.scale.x, 1.08, 'dark theme redraw preserves hover');
     assert.equal(button().props['aria-pressed'], false);
     assert.equal(scene.background.getHexString(), '111318');
     assert.equal(stars.material.color.getHexString(), 'ffffff');
@@ -167,6 +184,74 @@ test('theme toggle updates colors without resetting the scene or animation, incl
     app.unmount();
     assert.equal(app.listeners.size, 0);
   }
+});
+
+test('mouse hover grows only the cube and composes with its animation transforms', () => {
+  const app = mount();
+  const hoverGroup = app.cube.parent;
+  const stars = app.renderer.scene.children.find((child) => child.isPoints);
+  const starScale = stars.scale.clone();
+  assert.equal(hoverGroup.scale.x, 1);
+  app.pointer(20, 30);
+  assert.equal(hoverGroup.scale.x, 1, 'canvas background is not the cube');
+  app.pointer(420, 330, 'touch');
+  assert.equal(hoverGroup.scale.x, 1, 'touch does not leave a sticky hover');
+  app.cube.scale.setScalar(1.1);
+  app.pointer(420, 330);
+  assert.deepEqual(hoverGroup.scale.toArray(), [1.08, 1.08, 1.08]);
+  app.frame(4 * Math.PI);
+  assert.equal(hoverGroup.scale.x, 1.08);
+  assert.equal(app.cube.scale.x, 1.1, 'local scale is preserved');
+  assert.equal(app.cube.rotation.y, 0.5 + 2 * Math.PI);
+  assert.deepEqual(app.counts, [0, 1], 'hover does not interrupt rotation counting');
+  assert.ok(stars.scale.equals(starScale), 'background does not grow');
+  app.frame(4 * Math.PI + 1);
+  assert.equal(hoverGroup.scale.x, 1.08);
+  assert.equal(app.cube.position.y, Math.sin((4 * Math.PI + 1) * Math.PI / 2) * 0.15);
+  assert.ok(app.cube.getWorldPosition(new THREE.Vector3()).distanceTo(app.cube.position) < 1e-10,
+    'hover scales about the cube center without amplifying the world-space bounce');
+  app.motion(true);
+  const pausedPosition = app.cube.getWorldPosition(new THREE.Vector3());
+  app.leave();
+  assert.ok(app.cube.getWorldPosition(new THREE.Vector3()).distanceTo(pausedPosition) < 1e-10,
+    'leaving hover under reduced motion does not move the paused cube');
+  assert.equal(hoverGroup.scale.x, 1);
+  app.pointer(420, 330);
+  app.listeners.get('blur')();
+  assert.equal(hoverGroup.scale.x, 1);
+  app.pointer(420, 330);
+  app.listeners.get('canvas:pointercancel')();
+  assert.equal(hoverGroup.scale.x, 1);
+  app.unmount();
+  assert.equal(app.listeners.size, 0);
+});
+
+test('hover responds without animation under reduced motion and rechecks after resizing', () => {
+  const app = mount(true);
+  const hoverGroup = app.cube.parent;
+  app.pointer(420, 330);
+  assert.equal(hoverGroup.scale.x, 1.08);
+  assert.equal(app.running, false);
+  app.resize(400, 800);
+  assert.equal(hoverGroup.scale.x, 1, 'stationary pointer no longer covers the cube');
+  app.pointer(220, 430);
+  assert.equal(hoverGroup.scale.x, 1.08, 'uses the new canvas rectangle');
+  app.pointer(20, 30);
+  assert.equal(hoverGroup.scale.x, 1);
+  assert.equal(app.cube.rotation.y, 0.5, 'hover does not introduce rotation');
+  app.unmount();
+});
+
+test('stationary mouse is rechecked as the cube rotates beneath it', () => {
+  const app = mount();
+  app.pointer(520, 330);
+  const scales = new Set();
+  for (let seconds = 0; seconds <= 20; seconds += 0.25) {
+    app.frame(seconds);
+    scales.add(app.cube.parent.scale.x);
+  }
+  assert.deepEqual([...scales].sort(), [1, 1.08]);
+  app.unmount();
 });
 
 test('starfield stays behind the cube, fills resized views, and releases resources', () => {

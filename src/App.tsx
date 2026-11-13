@@ -23,7 +23,10 @@ export default function App() {
     );
     const cube = new THREE.Mesh(geometry, materials);
     cube.rotation.set(0.4, 0.5, 0);
-    scene.add(cube, new THREE.HemisphereLight(0xffffff, 0x334155, 2));
+    // Keep hover scaling independent of the cube's own animation transforms.
+    const hoverGroup = new THREE.Group();
+    hoverGroup.add(cube);
+    scene.add(hoverGroup, new THREE.HemisphereLight(0xffffff, 0x334155, 2));
     const light = new THREE.DirectionalLight(0xffffff, 3);
     light.position.set(3, 5, 4);
     scene.add(light);
@@ -46,11 +49,48 @@ export default function App() {
     stars.position.z = -5;
     scene.add(stars);
 
+    const raycaster = new THREE.Raycaster();
+    const pointer = new THREE.Vector2();
+    let mouse: { x: number; y: number } | null = null;
+    const render = () => {
+      // Hit-test the normal-size cube so growth cannot change its hover boundary.
+      hoverGroup.scale.setScalar(1);
+      hoverGroup.position.set(0, 0, 0);
+      if (mouse) {
+        const bounds = canvas.getBoundingClientRect();
+        pointer.set(
+          ((mouse.x - bounds.left) / bounds.width) * 2 - 1,
+          -((mouse.y - bounds.top) / bounds.height) * 2 + 1,
+        );
+        camera.updateMatrixWorld();
+        cube.updateWorldMatrix(true, false);
+        raycaster.setFromCamera(pointer, camera);
+        if (raycaster.intersectObject(cube, false).length > 0) {
+          hoverGroup.scale.setScalar(1.08);
+          // Scale about the cube's center, not the origin, preserving its world-space bob.
+          hoverGroup.position.copy(cube.position).multiplyScalar(1 - 1.08);
+        }
+      }
+      renderer.render(scene, camera);
+    };
+    const movePointer = (event: PointerEvent) => {
+      if (event.pointerType !== 'mouse') return;
+      mouse = { x: event.clientX, y: event.clientY };
+      render();
+    };
+    const clearPointer = () => {
+      mouse = null;
+      render();
+    };
+    canvas.addEventListener('pointermove', movePointer);
+    canvas.addEventListener('pointerleave', clearPointer);
+    canvas.addEventListener('pointercancel', clearPointer);
+    window.addEventListener('blur', clearPointer);
     // Update the existing scene, without resetting animation or the counter.
     updateThemeRef.current = (light) => {
       scene.background = new THREE.Color(light ? '#eef2f7' : '#111318');
       starMaterial.color.set(light ? '#64748b' : '#ffffff');
-      renderer.render(scene, camera);
+      render();
     };
 
     const resize = () => {
@@ -63,7 +103,7 @@ export default function App() {
       stars.scale.set(halfHeight * camera.aspect, halfHeight, 1);
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
       renderer.setSize(width, height, false);
-      renderer.render(scene, camera);
+      render();
     };
     resize();
     window.addEventListener('resize', resize);
@@ -85,7 +125,7 @@ export default function App() {
         lastCompletedRotations = fullRotations;
         setCompletedRotations(fullRotations);
       }
-      renderer.render(scene, camera);
+      render();
     };
     const updateMotion = () => {
       renderer.setAnimationLoop(motion.matches ? null : animate);
@@ -97,6 +137,10 @@ export default function App() {
       updateThemeRef.current = null;
       renderer.setAnimationLoop(null);
       window.removeEventListener('resize', resize);
+      canvas.removeEventListener('pointermove', movePointer);
+      canvas.removeEventListener('pointerleave', clearPointer);
+      canvas.removeEventListener('pointercancel', clearPointer);
+      window.removeEventListener('blur', clearPointer);
       motion.removeEventListener('change', updateMotion);
       starGeometry.dispose();
       starMaterial.dispose();
