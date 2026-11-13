@@ -164,13 +164,30 @@ export default function App() {
       mouse = null;
       render();
     };
+    const setWireframe = (wireframe: boolean) => {
+      if (materials[0].wireframe === wireframe) return;
+      materials.forEach((material) => { material.wireframe = wireframe; });
+      // Redraw immediately even when reduced motion disables the animation loop.
+      render();
+    };
+    const pressWireframe = (event: KeyboardEvent) => {
+      if (event.key === 'w' || event.key === 'W') setWireframe(true);
+    };
+    const releaseWireframe = (event: KeyboardEvent) => {
+      if (event.key === 'w' || event.key === 'W') setWireframe(false);
+    };
+    window.addEventListener('keydown', pressWireframe);
+    window.addEventListener('keyup', releaseWireframe);
     canvas.addEventListener('pointermove', movePointer);
     canvas.addEventListener('pointerleave', clearPointer);
     canvas.addEventListener('pointerdown', startDrag);
     canvas.addEventListener('pointerup', endDrag);
     canvas.addEventListener('pointercancel', cancelPointer);
     canvas.addEventListener('lostpointercapture', cancelPointer);
-    const blurPointer = () => cancelPointer();
+    const blurPointer = () => {
+      setWireframe(false);
+      cancelPointer();
+    };
     window.addEventListener('blur', blurPointer);
     // Update the existing scene, without resetting animation or the counter.
     updateThemeRef.current = (light) => {
@@ -252,7 +269,12 @@ export default function App() {
       }
       render();
     };
-    document.addEventListener('visibilitychange', resetFps);
+    const updateVisibility = () => {
+      resetFps();
+      // A release outside this tab may never reach its keyup listener.
+      if (document.hidden) setWireframe(false);
+    };
+    document.addEventListener('visibilitychange', updateVisibility);
     const updateMotion = () => {
       resetFps();
       renderer.setAnimationLoop(motion.matches ? null : animate);
@@ -273,10 +295,12 @@ export default function App() {
       canvas.removeEventListener('pointercancel', cancelPointer);
       canvas.removeEventListener('lostpointercapture', cancelPointer);
       window.removeEventListener('blur', blurPointer);
+      window.removeEventListener('keydown', pressWireframe);
+      window.removeEventListener('keyup', releaseWireframe);
       endDrag();
       canvas.style.cursor = '';
       motion.removeEventListener('change', updateMotion);
-      document.removeEventListener('visibilitychange', resetFps);
+      document.removeEventListener('visibilitychange', updateVisibility);
       starGeometry.dispose();
       starMaterial.dispose();
       shadowGeometry.dispose();
