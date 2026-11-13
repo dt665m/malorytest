@@ -50,6 +50,8 @@ export default function App() {
       setFullscreenPending(false);
     }
   };
+  const [isJumping, setIsJumping] = useState(false);
+  const jumpRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current!;
@@ -273,6 +275,9 @@ export default function App() {
 
     const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
     const start = performance.now();
+    let jumpStart: number | null = null;
+    let baseHeight = 0;
+    setIsJumping(false);
     let lastCompletedRotations = 0;
     setCompletedRotations(0);
     // Average animation frames over half a second, not event-driven redraws.
@@ -297,16 +302,33 @@ export default function App() {
         }
       }
       const elapsed = (time - start) / 1000;
-      // A small four-second bob in world space, independent of the cube's spin.
-      cube.position.y = Math.sin(elapsed * Math.PI / 2) * 0.15;
-      cube.rotation.x = 0.4 + elapsed * 0.3 + manualRotation.x;
-      const yRotation = elapsed * 0.5;
-      cube.rotation.y = 0.5 + yRotation + manualRotation.y;
-      // Count automatic Y-axis turns, excluding initial tilt and manual adjustments.
-      const fullRotations = Math.floor(yRotation / (2 * Math.PI));
-      if (fullRotations !== lastCompletedRotations) {
-        lastCompletedRotations = fullRotations;
-        setCompletedRotations(fullRotations);
+      if (!motion.matches) {
+        // A small four-second bob in world space, independent of the cube's spin.
+        baseHeight = Math.sin(elapsed * Math.PI / 2) * 0.15;
+        cube.rotation.x = 0.4 + elapsed * 0.3 + manualRotation.x;
+        const yRotation = elapsed * 0.5;
+        cube.rotation.y = 0.5 + yRotation + manualRotation.y;
+        // Count automatic Y-axis turns, excluding initial tilt and manual adjustments.
+        const fullRotations = Math.floor(yRotation / (2 * Math.PI));
+        if (fullRotations !== lastCompletedRotations) {
+          lastCompletedRotations = fullRotations;
+          setCompletedRotations(fullRotations);
+        }
+      }
+      // One time-based arc, added to the existing bob rather than replacing it.
+      cube.position.y = baseHeight;
+      if (jumpStart !== null) {
+        // Explicitly requested motion is gentler and shorter with reduced motion.
+        const progress = Math.min(Math.max((time - jumpStart) / (motion.matches ? 180 : 650), 0), 1);
+        cube.position.y += 4 * progress * (1 - progress) * (motion.matches ? 0.1 : 0.5);
+        if (progress === 1) {
+          jumpStart = null;
+          setIsJumping(false);
+          if (motion.matches) {
+            renderer.setAnimationLoop(null);
+            resetFps();
+          }
+        }
       }
       render();
     };
@@ -316,8 +338,18 @@ export default function App() {
       if (document.hidden) setWireframe(false);
     };
     document.addEventListener('visibilitychange', updateVisibility);
+    jumpRef.current = () => {
+      if (jumpStart !== null) return;
+      jumpStart = performance.now();
+      setIsJumping(true);
+      renderer.setAnimationLoop(animate);
+    };
     const updateMotion = () => {
       resetFps();
+      jumpStart = null;
+      setIsJumping(false);
+      cube.position.y = baseHeight;
+      render();
       renderer.setAnimationLoop(motion.matches ? null : animate);
     };
     updateMotion();
@@ -327,6 +359,7 @@ export default function App() {
       updateThemeRef.current = null;
       toggleShapeRef.current = null;
       updateSizeRef.current = null;
+      jumpRef.current = null;
       renderer.setAnimationLoop(null);
       window.removeEventListener('resize', resize);
       canvas.removeEventListener('pointermove', movePointer);
@@ -419,6 +452,14 @@ export default function App() {
         {isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
       </button>
       <p className="fullscreen-status" role="status">{fullscreenError}</p>
+      <button
+        type="button"
+        className="jump-button"
+        disabled={isJumping}
+        onClick={() => jumpRef.current?.()}
+      >
+        Jump
+      </button>
     </div>
   );
 }
