@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 
+const cubeSizes = { Small: 0.65, Medium: 1, Large: 1.4 };
+type CubeSize = keyof typeof cubeSizes;
+
 export default function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [completedRotations, setCompletedRotations] = useState(0);
@@ -8,6 +11,8 @@ export default function App() {
   const updateThemeRef = useRef<((light: boolean) => void) | null>(null);
   const [isSphere, setIsSphere] = useState(false);
   const toggleShapeRef = useRef<(() => boolean) | null>(null);
+  const [cubeSize, setCubeSize] = useState<CubeSize>('Medium');
+  const updateSizeRef = useRef<((size: CubeSize) => void) | null>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current!;
@@ -95,6 +100,12 @@ export default function App() {
       starMaterial.color.set(light ? '#64748b' : '#ffffff');
       render();
     };
+    setCubeSize('Medium');
+    updateSizeRef.current = (size) => {
+      cube.scale.setScalar(cubeSizes[size]);
+      // Redraw and recheck hover even when reduced motion stops animation.
+      render();
+    };
 
     const resize = () => {
       const { clientWidth: width, clientHeight: height } = canvas;
@@ -151,6 +162,7 @@ export default function App() {
     return () => {
       updateThemeRef.current = null;
       toggleShapeRef.current = null;
+      updateSizeRef.current = null;
       renderer.setAnimationLoop(null);
       window.removeEventListener('resize', resize);
       canvas.removeEventListener('pointermove', movePointer);
@@ -170,6 +182,10 @@ export default function App() {
   useEffect(() => {
     updateThemeRef.current?.(isLight);
   }, [isLight]);
+
+  useEffect(() => {
+    updateSizeRef.current?.(cubeSize);
+  }, [cubeSize]);
 
   return (
     <div className={`app ${isLight ? 'theme-light' : 'theme-dark'}`}>
@@ -200,6 +216,18 @@ export default function App() {
       >
         {isSphere ? 'Change to cube' : 'Change to sphere'}
       </button>
+      <div className="size-controls" role="group" aria-label="Cube size">
+        {(Object.keys(cubeSizes) as CubeSize[]).map((size) => (
+          <button
+            key={size}
+            type="button"
+            aria-pressed={cubeSize === size}
+            onClick={() => setCubeSize(size)}
+          >
+            {size}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

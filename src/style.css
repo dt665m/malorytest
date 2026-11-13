@@ -89,3 +89,42 @@ canvas {
   font-variant-numeric: tabular-nums;
   pointer-events: none;
 }
+
+.size-controls {
+  position: absolute;
+  top: max(1rem, env(safe-area-inset-top));
+  right: max(1rem, env(safe-area-inset-right));
+  display: flex;
+  gap: 0.5rem;
+}
+
+.size-controls button {
+  min-height: 44px;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: var(--surface);
+  color: var(--text);
+  font: 600 0.875rem/1.5 system-ui, sans-serif;
+  cursor: pointer;
+}
+
+.size-controls button[aria-pressed='true'] {
+  background: var(--text);
+  color: var(--surface);
+}
+
+.size-controls button:hover {
+  border-color: var(--text);
+}
+
+.size-controls button:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 3px;
+}
+
+@media (max-width: 480px) {
+  .size-controls {
+    top: calc(max(1rem, env(safe-area-inset-top)) + 3.75rem);
+  }
+}
