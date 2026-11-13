@@ -22,6 +22,12 @@ function mount(reducedMotion = false) {
   let cube;
   const counts = [];
   const listeners = new Map();
+  let stateUpdates = 0;
+  const document = {
+    hidden: false,
+    addEventListener: (name, callback) => listeners.set('document:' + name, callback),
+    removeEventListener: (name) => listeners.delete('document:' + name),
+  };
   const canvas = {
     clientWidth: 800, clientHeight: 600,
     getBoundingClientRect() {
@@ -88,6 +94,7 @@ function mount(reducedMotion = false) {
           const index = hookIndex++;
           states[index] ??= initial;
           return [states[index], (value) => {
+            stateUpdates++;
             states[index] = typeof value === 'function' ? value(states[index]) : value;
             if (index === 1) counts.push(states[index]);
           }];
@@ -103,6 +110,7 @@ function mount(reducedMotion = false) {
       throw new Error('Unexpected import: ' + name);
     },
     performance: { now: () => 1000 },
+    document,
     window: {
       devicePixelRatio: 1,
       matchMedia: () => motion,
@@ -124,6 +132,15 @@ function mount(reducedMotion = false) {
   return {
     counts, cube, renderer, camera, resources, listeners,
     get tree() { return tree; },
+    get stateUpdates() { return stateUpdates; },
+    get fps() {
+      render();
+      return tree.props.children.find((child) => child.props.className === 'fps-counter');
+    },
+    visibility(hidden) {
+      document.hidden = hidden;
+      listeners.get('document:visibilitychange')();
+    },
     toggleTheme() { tree.props.children[2].props.onClick(); render(); },
     pointer(x, y, pointerType = 'mouse') {
       listeners.get('canvas:pointermove')({ clientX: x, clientY: y, pointerType });
@@ -257,6 +274,60 @@ test('size changes immediately recheck stationary hover without compounding hove
   assert.equal(app.cube.parent.scale.x, 1);
   assert.equal(app.cube.scale.x, 1.4, 'leaving hover preserves chosen size');
   app.unmount();
+});
+
+test('FPS measures elapsed animation frames, updates at most twice a second, and adapts to refresh rate', () => {
+  const app = mount();
+  assert.deepEqual([...app.fps.props.children], [0, ' FPS']);
+  assert.equal(app.fps.props['aria-label'], 'Frames per second');
+  assert.equal(app.fps.props['aria-live'], 'off', 'frequent changes are not announced');
+  app.frame(0);
+  const updates = app.stateUpdates;
+  for (let i = 1; i < 30; i++) app.frame(i / 60);
+  assert.equal(app.stateUpdates, updates, 'no per-frame React updates');
+  app.frame(0.5);
+  assert.deepEqual([...app.fps.props.children], [60, ' FPS']);
+  for (let i = 1; i <= 60; i++) app.frame(0.5 + i / 120);
+  assert.deepEqual([...app.fps.props.children], [120, ' FPS']);
+  for (let i = 1; i <= 15; i++) app.frame(1 + i / 30);
+  assert.deepEqual([...app.fps.props.children], [30, ' FPS']);
+  app.toggleTheme();
+  app.toggleShape();
+  app.setSize('Large');
+  assert.equal(app.cube.scale.x, 1.4, 'size controls remain functional with FPS updates');
+  app.resize(400, 800);
+  app.pointer(220, 430);
+  assert.deepEqual([...app.fps.props.children], [30, ' FPS'], 'event redraws do not inflate FPS');
+  app.unmount();
+  assert.equal(app.listeners.size, 0);
+  assert.equal(app.running, false);
+});
+
+test('FPS resets across hidden tabs and reduced motion without adding an animation loop', () => {
+  const app = mount(true);
+  assert.equal(app.running, false);
+  assert.deepEqual([...app.fps.props.children], [0, ' FPS']);
+  app.motion(false);
+  for (let i = 0; i <= 30; i++) app.frame(i / 60);
+  assert.deepEqual([...app.fps.props.children], [60, ' FPS']);
+  app.visibility(true);
+  assert.deepEqual([...app.fps.props.children], [0, ' FPS']);
+  app.frame(10);
+  assert.deepEqual([...app.fps.props.children], [0, ' FPS']);
+  app.visibility(false);
+  for (let i = 0; i <= 30; i++) app.frame(20 + i / 60);
+  assert.deepEqual([...app.fps.props.children], [60, ' FPS'], 'hidden time is excluded');
+  app.motion(true);
+  assert.deepEqual([...app.fps.props.children], [0, ' FPS']);
+  assert.equal(app.running, false);
+  app.motion(false);
+  for (let i = 0; i <= 15; i++) app.frame(30 + i / 30);
+  assert.deepEqual([...app.fps.props.children], [30, ' FPS'], 'paused time is excluded');
+  app.unmount();
+  assert.equal(app.listeners.size, 0);
+  const remount = mount();
+  assert.deepEqual([...remount.fps.props.children], [0, ' FPS']);
+  remount.unmount();
 });
 
 test('theme toggle updates colors without resetting the scene or animation, including reduced motion', () => {

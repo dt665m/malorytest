@@ -13,6 +13,7 @@ export default function App() {
   const toggleShapeRef = useRef<(() => boolean) | null>(null);
   const [cubeSize, setCubeSize] = useState<CubeSize>('Medium');
   const updateSizeRef = useRef<((size: CubeSize) => void) | null>(null);
+  const [fps, setFps] = useState(0);
 
   useEffect(() => {
     const canvas = canvasRef.current!;
@@ -168,7 +169,27 @@ export default function App() {
     const start = performance.now();
     let lastCompletedRotations = 0;
     setCompletedRotations(0);
+    // Average animation frames over half a second, not event-driven redraws.
+    let fpsStart: number | null = null;
+    let fpsFrames = 0;
+    const resetFps = () => {
+      fpsStart = null;
+      fpsFrames = 0;
+      setFps(0);
+    };
     const animate = (time: number) => {
+      if (document.hidden) return;
+      if (fpsStart === null) {
+        fpsStart = time;
+      } else {
+        fpsFrames++;
+        const duration = time - fpsStart;
+        if (duration >= 500) {
+          setFps(Math.round(fpsFrames * 1000 / duration));
+          fpsStart = time;
+          fpsFrames = 0;
+        }
+      }
       const elapsed = (time - start) / 1000;
       // A small four-second bob in world space, independent of the cube's spin.
       cube.position.y = Math.sin(elapsed * Math.PI / 2) * 0.15;
@@ -183,7 +204,9 @@ export default function App() {
       }
       render();
     };
+    document.addEventListener('visibilitychange', resetFps);
     const updateMotion = () => {
+      resetFps();
       renderer.setAnimationLoop(motion.matches ? null : animate);
     };
     updateMotion();
@@ -200,6 +223,7 @@ export default function App() {
       canvas.removeEventListener('pointercancel', clearPointer);
       window.removeEventListener('blur', clearPointer);
       motion.removeEventListener('change', updateMotion);
+      document.removeEventListener('visibilitychange', resetFps);
       starGeometry.dispose();
       starMaterial.dispose();
       shadowGeometry.dispose();
@@ -261,6 +285,9 @@ export default function App() {
           </button>
         ))}
       </div>
+      <output className="fps-counter" aria-label="Frames per second" aria-live="off">
+        {fps} FPS
+      </output>
     </div>
   );
 }
