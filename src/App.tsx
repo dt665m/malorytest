@@ -39,6 +39,35 @@ export default function App() {
     light.position.set(3, 5, 4);
     scene.add(light);
 
+    // A soft pool of light implies a floor without obscuring the starfield.
+    // Keep it below the largest cube's full rotation/bob/hover envelope and world-anchored.
+    const shadowSize = 64;
+    const shadowPixels = new Uint8Array(shadowSize * shadowSize * 4);
+    for (let y = 0; y < shadowSize; y++) {
+      for (let x = 0; x < shadowSize; x++) {
+        const radius = Math.hypot((x + 0.5) / shadowSize * 2 - 1, (y + 0.5) / shadowSize * 2 - 1);
+        const offset = (y * shadowSize + x) * 4;
+        shadowPixels.set([255, 255, 255, Math.round(255 * Math.max(0, 1 - radius * radius) ** 3)], offset);
+      }
+    }
+    const shadowTexture = new THREE.DataTexture(shadowPixels, shadowSize, shadowSize);
+    shadowTexture.magFilter = THREE.LinearFilter;
+    shadowTexture.minFilter = THREE.LinearFilter;
+    shadowTexture.needsUpdate = true;
+    const shadowGeometry = new THREE.PlaneGeometry(3.6, 3.6);
+    const shadowMaterial = new THREE.MeshBasicMaterial({
+      map: shadowTexture,
+      color: '#568cff',
+      opacity: 0.5,
+      transparent: true,
+      depthWrite: false,
+      toneMapped: false,
+    });
+    const floorShadow = new THREE.Mesh(shadowGeometry, shadowMaterial);
+    floorShadow.rotation.x = -Math.PI / 2;
+    floorShadow.position.y = -1.6;
+    scene.add(floorShadow);
+
     // A single static draw call, placed entirely behind the rotating cube.
     const starPositions = new Float32Array(300 * 3);
     for (let i = 0; i < starPositions.length; i += 3) {
@@ -98,6 +127,7 @@ export default function App() {
     updateThemeRef.current = (light) => {
       scene.background = new THREE.Color(light ? '#eef2f7' : '#111318');
       starMaterial.color.set(light ? '#64748b' : '#ffffff');
+      shadowMaterial.color.set(light ? '#4263b8' : '#568cff');
       render();
     };
     setCubeSize('Medium');
@@ -172,6 +202,9 @@ export default function App() {
       motion.removeEventListener('change', updateMotion);
       starGeometry.dispose();
       starMaterial.dispose();
+      shadowGeometry.dispose();
+      shadowMaterial.dispose();
+      shadowTexture.dispose();
       geometry.dispose();
       sphereGeometry.dispose();
       materials.forEach((material) => material.dispose());

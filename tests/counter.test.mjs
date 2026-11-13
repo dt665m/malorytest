@@ -67,7 +67,7 @@ function mount(reducedMotion = false) {
     Mesh: class extends THREE.Mesh {
       constructor(geometry, materials) {
         super(geometry, materials);
-        cube = this;
+        if (geometry instanceof THREE.BoxGeometry) cube = this;
       }
     },
   };
@@ -147,6 +147,56 @@ function mount(reducedMotion = false) {
     get running() { return typeof loop === 'function'; },
   };
 }
+
+test('soft floor glow stays beneath both shapes and releases its rendering resources', () => {
+  for (const reducedMotion of [false, true]) {
+    const app = mount(reducedMotion);
+    const shadow = app.renderer.scene.children.find((child) => child.geometry instanceof THREE.PlaneGeometry);
+    assert.ok(shadow, 'floor glow is present even when animation is disabled');
+    const normal = new THREE.Vector3(0, 0, 1).applyQuaternion(shadow.quaternion);
+    assert.ok(normal.distanceTo(new THREE.Vector3(0, 1, 0)) < 1e-10, 'lies on a horizontal floor');
+    assert.ok(shadow.position.y < -Math.sqrt(3) / 2 * 1.4 * 1.08 - 0.15,
+      'below the lowest possible Large hovered/bobbing cube corner');
+    assert.equal(shadow.material.transparent, true);
+    assert.equal(shadow.material.depthWrite, false);
+    const { data, width, height } = shadow.material.map.image;
+    const alpha = (x, y) => data[(y * width + x) * 4 + 3];
+    assert.equal(alpha(0, 0), 0, 'no rectangular border');
+    assert.ok(alpha(width / 2, height / 2) > alpha(width / 4, height / 2));
+    assert.ok(alpha(width / 4, height / 2) > alpha(0, height / 2), 'smooth radial falloff');
+    const position = shadow.position.clone();
+    const scale = shadow.scale.clone();
+    app.pointer(420, 330);
+    for (const size of ['Small', 'Medium', 'Large']) {
+      app.setSize(size);
+      for (let time = 0; time <= 4; time += 0.25) {
+        app.frame(time);
+        const bounds = new THREE.Box3().setFromObject(app.cube, true);
+        assert.ok(bounds.min.y > shadow.position.y, `${size} cube stays above the floor`);
+      }
+      app.toggleShape();
+      app.frame(1);
+      assert.ok(new THREE.Box3().setFromObject(app.cube, true).min.y > shadow.position.y,
+        `${size} sphere stays above the floor`);
+      app.toggleShape();
+    }
+    app.toggleShape();
+    app.resize(400, 800);
+    app.toggleTheme();
+    assert.ok(shadow.position.equals(position), 'floor does not bob with the shape');
+    assert.ok(shadow.scale.equals(scale), 'hover and resize do not distort the floor');
+    assert.equal(shadow.material.color.getHexString(), '4263b8', 'visible tint in light theme');
+    app.toggleTheme();
+    assert.equal(shadow.material.color.getHexString(), '568cff');
+    const disposed = [];
+    for (const resource of [shadow.geometry, shadow.material, shadow.material.map]) {
+      resource.addEventListener('dispose', () => disposed.push(resource));
+    }
+    app.unmount();
+    assert.equal(disposed.length, 3, 'geometry, material and texture are disposed');
+    assert.equal(app.listeners.size, 0);
+  }
+});
 
 test('size buttons set absolute scales and preserve scene, animation, theme, and shape', () => {
   for (const reducedMotion of [false, true]) {
