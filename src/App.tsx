@@ -8,7 +8,7 @@ export default function App() {
     const canvas = canvasRef.current!;
     const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color('#111318');
+    scene.background = new THREE.Color('#0b132b');
 
     const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
     camera.position.z = 5;
