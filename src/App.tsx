@@ -26,10 +26,32 @@ export default function App() {
     light.position.set(3, 5, 4);
     scene.add(light);
 
+    // A single static draw call, placed entirely behind the rotating cube.
+    const starPositions = new Float32Array(300 * 3);
+    for (let i = 0; i < starPositions.length; i += 3) {
+      starPositions[i] = Math.random() * 2 - 1;
+      starPositions[i + 1] = Math.random() * 2 - 1;
+    }
+    const starGeometry = new THREE.BufferGeometry();
+    starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+    const starMaterial = new THREE.PointsMaterial({
+      color: 0xffffff,
+      size: 1.5,
+      sizeAttenuation: false,
+      toneMapped: false,
+    });
+    const stars = new THREE.Points(starGeometry, starMaterial);
+    stars.position.z = -5;
+    scene.add(stars);
+
     const resize = () => {
       const { clientWidth: width, clientHeight: height } = canvas;
       camera.aspect = width / height;
       camera.updateProjectionMatrix();
+      // Fill the camera's view at the star plane, including portrait viewports.
+      const halfHeight = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2))
+        * (camera.position.z - stars.position.z);
+      stars.scale.set(halfHeight * camera.aspect, halfHeight, 1);
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
       renderer.setSize(width, height, false);
       renderer.render(scene, camera);
@@ -64,6 +86,8 @@ export default function App() {
       renderer.setAnimationLoop(null);
       window.removeEventListener('resize', resize);
       motion.removeEventListener('change', updateMotion);
+      starGeometry.dispose();
+      starMaterial.dispose();
       geometry.dispose();
       materials.forEach((material) => material.dispose());
       renderer.dispose();
