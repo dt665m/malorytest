@@ -648,6 +648,28 @@ test('shape toggle renders immediately with reduced motion and survives resizing
   assert.equal(app.renderer.renderCount, draws, 'unmounted control cannot use disposed resources');
 });
 
+test('Large cube clears the world-anchored floor glow while dragged at varied angles', () => {
+  for (const reducedMotion of [false, true]) {
+    const app = mount(reducedMotion);
+    const floor = app.renderer.scene.children.find((child) => child.geometry instanceof THREE.PlaneGeometry);
+    const floorPosition = floor.position.clone();
+    app.setSize('Large');
+    app.frame(3); // Lowest point of the automatic bob.
+    app.dispatch('pointerdown');
+    assert.ok(app.captures.has(1));
+    for (let step = 0; step < 40; step++) {
+      app.dispatch('pointermove', { clientX: 420 + step * 35, clientY: 330 - step * 23 });
+      assert.equal(app.cube.parent.scale.x, 1.08, 'active drag keeps hover enlargement');
+      assert.ok(new THREE.Box3().setFromObject(app.cube, true).min.y > floor.position.y,
+        'Large dragged cube stays above the glow');
+      assert.ok(floor.position.equals(floorPosition), 'drag does not move the floor');
+    }
+    app.dispatch('pointerup');
+    app.unmount();
+    assert.equal(app.listeners.size, 0);
+  }
+});
+
 test('drag hit-testing respects selected size and size changes preserve manual rotation', () => {
   for (const reducedMotion of [false, true]) {
     const app = mount(reducedMotion);
