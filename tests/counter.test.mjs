@@ -130,6 +130,10 @@ function mount(reducedMotion = false) {
     },
     leave() { listeners.get('canvas:pointerleave')(); },
     toggleShape() { tree.props.children[3].props.onClick(); render(); },
+    setSize(size) {
+      tree.props.children[4].props.children.find((button) => button.props.children === size).props.onClick();
+      render();
+    },
     frame(seconds) { loop?.(1000 + seconds * 1000); },
     motion(matches) {
       motion.matches = matches;
@@ -143,6 +147,67 @@ function mount(reducedMotion = false) {
     get running() { return typeof loop === 'function'; },
   };
 }
+
+test('size buttons set absolute scales and preserve scene, animation, theme, and shape', () => {
+  for (const reducedMotion of [false, true]) {
+    const app = mount(reducedMotion);
+    const scene = app.renderer.scene;
+    const controls = () => app.tree.props.children[4];
+    assert.equal(controls().props.role, 'group');
+    assert.equal(controls().props['aria-label'], 'Cube size');
+    assert.deepEqual(Array.from(controls().props.children, (button) => button.props.children),
+      ['Small', 'Medium', 'Large']);
+    assert.equal(controls().props.children[1].props['aria-pressed'], true);
+    app.frame(13);
+    const rotation = app.cube.rotation.clone();
+    const position = app.cube.position.clone();
+    const counts = [...app.counts];
+    for (const [size, scale] of [['Small', 0.65], ['Large', 1.4], ['Medium', 1], ['Small', 0.65]]) {
+      const draws = app.renderer.renderCount;
+      app.setSize(size);
+      assert.ok(app.renderer.renderCount > draws, 'size is redrawn immediately');
+      assert.deepEqual(app.cube.scale.toArray(), [scale, scale, scale]);
+      for (const button of controls().props.children) {
+        assert.equal(button.type, 'button');
+        assert.equal(button.props.type, 'button');
+        assert.equal(button.props['aria-pressed'], button.props.children === size);
+      }
+      app.setSize(size);
+      assert.equal(app.cube.scale.x, scale, 'repeated clicks do not compound size');
+      app.toggleTheme();
+      app.toggleShape();
+      app.resize(400, 800);
+      assert.equal(app.cube.scale.x, scale);
+      assert.equal(app.renderer.scene, scene);
+      assert.ok(app.cube.rotation.equals(rotation));
+      assert.ok(app.cube.position.equals(position));
+      assert.deepEqual(app.counts, counts);
+      assert.equal(app.running, !reducedMotion);
+    }
+    app.frame(20);
+    assert.equal(app.cube.scale.x, 0.65, 'animation retains selected size');
+    app.unmount();
+    const draws = app.renderer.renderCount;
+    app.setSize('Large');
+    assert.equal(app.renderer.renderCount, draws, 'cleanup disconnects size updates');
+    assert.equal(app.listeners.size, 0);
+  }
+});
+
+test('size changes immediately recheck stationary hover without compounding hover growth', () => {
+  const app = mount(true);
+  app.pointer(335, 250);
+  assert.equal(app.cube.parent.scale.x, 1.08);
+  app.setSize('Small');
+  assert.equal(app.cube.parent.scale.x, 1, 'small cube no longer covers pointer');
+  app.setSize('Large');
+  assert.equal(app.cube.parent.scale.x, 1.08, 'large cube covers stationary pointer');
+  assert.equal(app.cube.scale.x, 1.4);
+  app.leave();
+  assert.equal(app.cube.parent.scale.x, 1);
+  assert.equal(app.cube.scale.x, 1.4, 'leaving hover preserves chosen size');
+  app.unmount();
+});
 
 test('theme toggle updates colors without resetting the scene or animation, including reduced motion', () => {
   for (const reducedMotion of [false, true]) {
