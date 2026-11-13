@@ -13,8 +13,11 @@ const { code: source } = await transformWithEsbuild(
 );
 
 function mount(reducedMotion = false) {
-  let effect;
-  let cleanup;
+  const effects = [];
+  const refs = [];
+  const states = [];
+  let hookIndex = 0;
+  let tree;
   let loop;
   let cube;
   const counts = [];
@@ -46,7 +49,6 @@ function mount(reducedMotion = false) {
       children = [];
       add(...objects) { this.children.push(...objects); }
     },
-    Color: class {},
     PerspectiveCamera: function () { return camera; },
     BoxGeometry: Resource,
     MeshStandardMaterial: Resource,
@@ -71,9 +73,25 @@ function mount(reducedMotion = false) {
       if (name === 'three') return three;
       if (name === 'react/jsx-runtime') return { jsx, jsxs: jsx, Fragment: 'fragment' };
       if (name === 'react') return {
-        useRef: () => ({ current: canvas }),
-        useState: (initial) => [initial, (value) => counts.push(value)],
-        useEffect: (callback) => { effect = callback; },
+        useRef: (initial) => {
+          const index = hookIndex++;
+          return refs[index] ??= { current: index === 0 ? canvas : initial };
+        },
+        useState: (initial) => {
+          const index = hookIndex++;
+          states[index] ??= initial;
+          return [states[index], (value) => {
+            states[index] = typeof value === 'function' ? value(states[index]) : value;
+            if (index === 1) counts.push(states[index]);
+          }];
+        },
+        useEffect: (callback, deps) => {
+          const index = hookIndex++;
+          const previous = effects[index];
+          if (!previous || deps.some((dep, i) => dep !== previous.deps[i])) {
+            effects[index] = { callback, deps, cleanup: previous?.cleanup, pending: true };
+          }
+        },
       };
       throw new Error('Unexpected import: ' + name);
     },
@@ -85,10 +103,21 @@ function mount(reducedMotion = false) {
       removeEventListener: (name) => listeners.delete(name),
     },
   });
-  const tree = module.exports.default();
-  cleanup = effect();
+  const render = () => {
+    hookIndex = 0;
+    tree = module.exports.default();
+    effects.forEach((effect) => {
+      if (!effect.pending) return;
+      effect.cleanup?.();
+      effect.pending = false;
+      effect.cleanup = effect.callback();
+    });
+  };
+  render();
   return {
-    counts, cube, tree, renderer, camera, resources, listeners,
+    counts, cube, renderer, camera, resources, listeners,
+    get tree() { return tree; },
+    toggleTheme() { tree.props.children[2].props.onClick(); render(); },
     frame(seconds) { loop?.(1000 + seconds * 1000); },
     motion(matches) {
       motion.matches = matches;
@@ -98,10 +127,41 @@ function mount(reducedMotion = false) {
       Object.assign(canvas, { clientWidth: width, clientHeight: height });
       listeners.get('resize')();
     },
-    unmount() { cleanup(); },
+    unmount() { effects.forEach((effect) => effect.cleanup?.()); },
     get running() { return typeof loop === 'function'; },
   };
 }
+
+test('theme toggle updates colors without resetting the scene or animation, including reduced motion', () => {
+  for (const reducedMotion of [false, true]) {
+    const app = mount(reducedMotion);
+    const scene = app.renderer.scene;
+    const stars = scene.children.find((child) => child.isPoints);
+    const button = () => app.tree.props.children[2];
+    assert.equal(button().type, 'button');
+    assert.equal(button().props['aria-label'], 'Light theme');
+    assert.equal(button().props['aria-pressed'], false);
+    assert.equal(scene.background.getHexString(), '111318');
+    app.frame(4 * Math.PI);
+    const rotation = app.cube.rotation.y;
+    const counts = [...app.counts];
+    app.toggleTheme();
+    assert.equal(button().props['aria-pressed'], true);
+    assert.equal(app.tree.props.className, 'app theme-light');
+    assert.equal(scene.background.getHexString(), 'eef2f7');
+    assert.equal(stars.material.color.getHexString(), '64748b');
+    assert.equal(app.renderer.scene, scene, 'same scene is redrawn immediately');
+    assert.equal(app.cube.rotation.y, rotation);
+    assert.deepEqual(app.counts, counts);
+    assert.equal(app.running, !reducedMotion);
+    app.toggleTheme();
+    assert.equal(button().props['aria-pressed'], false);
+    assert.equal(scene.background.getHexString(), '111318');
+    assert.equal(stars.material.color.getHexString(), 'ffffff');
+    app.unmount();
+    assert.equal(app.listeners.size, 0);
+  }
+});
 
 test('starfield stays behind the cube, fills resized views, and releases resources', () => {
   const app = mount(true);
