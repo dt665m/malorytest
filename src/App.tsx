@@ -65,6 +65,8 @@ export default function App() {
     setCompletedRotations(0);
     const animate = (time: number) => {
       const elapsed = (time - start) / 1000;
+      // A small four-second bob in world space, independent of the cube's spin.
+      cube.position.y = Math.sin(elapsed * Math.PI / 2) * 0.15;
       cube.rotation.x = 0.4 + elapsed * 0.3;
       const yRotation = elapsed * 0.5;
       cube.rotation.y = 0.5 + yRotation;
