@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
+import * as THREE from 'three';
 import { transformWithEsbuild } from 'vite';
 
 // Exercise App's actual animation callbacks without a browser or WebGL context.
@@ -34,13 +35,17 @@ function mount(reducedMotion = false) {
     setAnimationLoop(callback) { loop = callback; }
     setPixelRatio() {}
     setSize(width, height) { this.size = [width, height]; }
-    render() {}
+    render(scene) { this.scene = scene; }
   }
   const renderer = new Renderer();
-  const camera = { position: {}, updateProjectionMatrix() {} };
+  const camera = { fov: 45, position: {}, updateProjectionMatrix() {} };
   const three = {
+    ...THREE,
     WebGLRenderer: function () { return renderer; },
-    Scene: class { add() {} },
+    Scene: class {
+      children = [];
+      add(...objects) { this.children.push(...objects); }
+    },
     Color: class {},
     PerspectiveCamera: function () { return camera; },
     BoxGeometry: Resource,
@@ -96,6 +101,43 @@ function mount(reducedMotion = false) {
     get running() { return typeof loop === 'function'; },
   };
 }
+
+test('starfield stays behind the cube, fills resized views, and releases resources', () => {
+  const app = mount(true);
+  const stars = app.renderer.scene.children.find((child) => child.isPoints);
+  assert.ok(stars, 'starfield is present even with reduced motion');
+  assert.ok(stars.position.z < -Math.sqrt(3) / 2, 'behind the cube at every rotation');
+  assert.equal(stars.material.color.getHex(), 0xffffff);
+  assert.ok(stars.material.size > 0 && stars.material.size <= 2);
+  assert.equal(stars.material.sizeAttenuation, false, 'small screen-space dots');
+  const positions = stars.geometry.getAttribute('position');
+  assert.ok(positions.count >= 100);
+  for (let i = 0; i < positions.count; i++) {
+    assert.ok(Math.abs(positions.getX(i)) <= 1);
+    assert.ok(Math.abs(positions.getY(i)) <= 1);
+    assert.equal(positions.getZ(i), 0);
+  }
+  const originalPositions = Array.from(positions.array);
+  const checkCoverage = (width, height) => {
+    app.resize(width, height);
+    const halfHeight = Math.tan(THREE.MathUtils.degToRad(app.camera.fov / 2))
+      * (app.camera.position.z - stars.position.z);
+    assert.equal(stars.scale.x, halfHeight * width / height);
+    assert.equal(stars.scale.y, halfHeight);
+  };
+  checkCoverage(400, 800);
+  checkCoverage(1600, 600);
+  app.motion(false);
+  app.frame(20);
+  assert.deepEqual(Array.from(positions.array), originalPositions, 'no star motion');
+  assert.equal(stars.rotation.x, 0);
+  assert.equal(stars.rotation.y, 0);
+  const disposed = [];
+  stars.geometry.addEventListener('dispose', () => disposed.push('geometry'));
+  stars.material.addEventListener('dispose', () => disposed.push('material'));
+  app.unmount();
+  assert.deepEqual(disposed, ['geometry', 'material']);
+});
 
 test('counts complete Y turns, not initial tilt, partial turns, or frames', () => {
   const app = mount();
