@@ -36,6 +36,17 @@ canvas {
   position: absolute;
   top: max(1rem, env(safe-area-inset-top));
   left: max(1rem, env(safe-area-inset-left));
+}
+
+.jump-button {
+  position: absolute;
+  right: max(1rem, env(safe-area-inset-right));
+  bottom: calc(max(1rem, env(safe-area-inset-bottom)) + 3.25rem);
+}
+
+.theme-toggle,
+.fullscreen-toggle,
+.jump-button {
   min-height: 44px;
   padding: 0.5rem 0.875rem;
   border: 1px solid var(--border);
@@ -47,12 +58,19 @@ canvas {
 }
 
 .theme-toggle:hover,
-.fullscreen-toggle:hover:not(:disabled) {
+.fullscreen-toggle:hover:not(:disabled),
+.jump-button:hover:not(:disabled) {
   border-color: var(--text);
 }
 
+.jump-button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
 .theme-toggle:focus-visible,
-.fullscreen-toggle:focus-visible {
+.fullscreen-toggle:focus-visible,
+.jump-button:focus-visible {
   outline: 2px solid var(--text);
   outline-offset: 3px;
 }
@@ -73,7 +91,7 @@ canvas {
 .fullscreen-status {
   position: fixed;
   right: max(1rem, env(safe-area-inset-right));
-  bottom: calc(max(1rem, env(safe-area-inset-bottom)) + 3.25rem);
+  bottom: calc(max(1rem, env(safe-area-inset-bottom)) + 6.5rem);
   max-width: min(22rem, calc(100% - 2rem));
   margin: 0;
   padding: 0.5rem;
