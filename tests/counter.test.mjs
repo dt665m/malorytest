@@ -648,6 +648,40 @@ test('shape toggle renders immediately with reduced motion and survives resizing
   assert.equal(app.renderer.renderCount, draws, 'unmounted control cannot use disposed resources');
 });
 
+test('drag redraws do not inflate FPS or restart reduced-motion animation', () => {
+  const app = mount(true);
+  app.setSize('Large');
+  app.dispatch('pointerdown');
+  for (let step = 1; step <= 60; step++) {
+    app.dispatch('pointermove', { clientX: 420 + step, clientY: 330 + step });
+  }
+  assert.equal(app.running, false);
+  assert.deepEqual([...app.fps.props.children], [0, ' FPS']);
+  app.motion(false);
+  for (let frame = 0; frame <= 30; frame++) {
+    app.dispatch('pointermove', { clientX: 480 + frame });
+    app.frame(frame / 60);
+  }
+  assert.deepEqual([...app.fps.props.children], [60, ' FPS'],
+    'only animation frames contribute, not interleaved drag redraws');
+  app.visibility(true);
+  assert.deepEqual([...app.fps.props.children], [0, ' FPS']);
+  app.listeners.get('blur')();
+  assert.equal(app.captures.size, 0);
+  app.frame(10);
+  assert.deepEqual([...app.fps.props.children], [0, ' FPS']);
+  app.visibility(false);
+  for (let frame = 0; frame <= 15; frame++) app.frame(20 + frame / 30);
+  assert.deepEqual([...app.fps.props.children], [30, ' FPS']);
+  app.motion(true);
+  app.dispatch('pointerdown');
+  app.dispatch('pointermove', { clientX: 440 });
+  assert.equal(app.running, false);
+  assert.deepEqual([...app.fps.props.children], [0, ' FPS']);
+  app.unmount();
+  assert.equal(app.listeners.size, 0);
+});
+
 test('Large cube clears the world-anchored floor glow while dragged at varied angles', () => {
   for (const reducedMotion of [false, true]) {
     const app = mount(reducedMotion);
