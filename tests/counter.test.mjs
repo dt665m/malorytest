@@ -144,6 +144,7 @@ test('theme toggle updates colors without resetting the scene or animation, incl
     assert.equal(scene.background.getHexString(), '111318');
     app.frame(4 * Math.PI);
     const rotation = app.cube.rotation.y;
+    const height = app.cube.position.y;
     const counts = [...app.counts];
     app.toggleTheme();
     assert.equal(button().props['aria-pressed'], true);
@@ -152,12 +153,17 @@ test('theme toggle updates colors without resetting the scene or animation, incl
     assert.equal(stars.material.color.getHexString(), '64748b');
     assert.equal(app.renderer.scene, scene, 'same scene is redrawn immediately');
     assert.equal(app.cube.rotation.y, rotation);
+    assert.equal(app.cube.position.y, height, 'theme changes preserve bounce position');
     assert.deepEqual(app.counts, counts);
     assert.equal(app.running, !reducedMotion);
     app.toggleTheme();
     assert.equal(button().props['aria-pressed'], false);
     assert.equal(scene.background.getHexString(), '111318');
     assert.equal(stars.material.color.getHexString(), 'ffffff');
+    app.frame(13);
+    assert.equal(app.cube.position.y, reducedMotion ? height : Math.sin(13 * Math.PI / 2) * 0.15);
+    assert.equal(app.cube.rotation.y, reducedMotion ? rotation : 0.5 + 13 * 0.5);
+    assert.deepEqual(app.counts, counts, 'theme changes preserve rotation counting');
     app.unmount();
     assert.equal(app.listeners.size, 0);
   }
