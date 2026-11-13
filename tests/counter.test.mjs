@@ -55,6 +55,7 @@ function mount(reducedMotion = false) {
         this.geometry = geometry;
         this.material = materials;
         cube = this;
+        this.position = new THREE.Vector3();
         this.rotation = { set(x, y, z) { Object.assign(this, { x, y, z }); } };
       }
     },
@@ -137,6 +138,38 @@ test('starfield stays behind the cube, fills resized views, and releases resourc
   stars.material.addEventListener('dispose', () => disposed.push('material'));
   app.unmount();
   assert.deepEqual(disposed, ['geometry', 'material']);
+});
+
+test('cube bobs gently in world space without changing its spin or depending on frame rate', () => {
+  const app = mount();
+  const sparse = mount();
+  const heights = [];
+  for (let seconds = 0; seconds <= 4; seconds += 0.25) {
+    app.frame(seconds);
+    heights.push(app.cube.position.y);
+    assert.equal(app.cube.position.x, 0);
+    assert.equal(app.cube.position.z, 0);
+    assert.ok(Math.abs(app.cube.position.y) <= 0.15);
+    assert.equal(app.cube.rotation.x, 0.4 + seconds * 0.3);
+    assert.equal(app.cube.rotation.y, 0.5 + seconds * 0.5);
+  }
+  assert.ok(Math.max(...heights) > 0.14, 'moves above center');
+  assert.ok(Math.min(...heights) < -0.14, 'moves below center');
+  assert.ok(Math.abs(app.cube.position.y) < 1e-10, 'returns to center after a cycle');
+  app.frame(5.25);
+  sparse.frame(5.25);
+  assert.equal(app.cube.position.y, sparse.cube.position.y, 'same time, same height');
+  const pausedHeight = app.cube.position.y;
+  app.motion(true);
+  app.frame(7);
+  assert.equal(app.cube.position.y, pausedHeight, 'reduced motion stops the bob');
+  app.unmount();
+  sparse.unmount();
+
+  const reduced = mount(true);
+  reduced.frame(1);
+  assert.equal(reduced.cube.position.y, 0, 'starts centered with reduced motion');
+  reduced.unmount();
 });
 
 test('counts complete Y turns, not initial tilt, partial turns, or frames', () => {
