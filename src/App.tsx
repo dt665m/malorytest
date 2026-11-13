@@ -90,31 +90,75 @@ export default function App() {
     const raycaster = new THREE.Raycaster();
     const pointer = new THREE.Vector2();
     let mouse: { x: number; y: number } | null = null;
+    let drag: { pointerId: number; x: number; y: number } | null = null;
+    // Manual offsets compose with the elapsed-time animation and survive release.
+    const manualRotation = { x: 0, y: 0 };
+    const hitCube = (x: number, y: number) => {
+      const bounds = canvas.getBoundingClientRect();
+      pointer.set(
+        ((x - bounds.left) / bounds.width) * 2 - 1,
+        -((y - bounds.top) / bounds.height) * 2 + 1,
+      );
+      camera.updateMatrixWorld();
+      cube.updateWorldMatrix(true, false);
+      raycaster.setFromCamera(pointer, camera);
+      return raycaster.intersectObject(cube, false).length > 0;
+    };
     const render = () => {
       // Hit-test the normal-size cube so growth cannot change its hover boundary.
       hoverGroup.scale.setScalar(1);
       hoverGroup.position.set(0, 0, 0);
-      if (mouse) {
-        const bounds = canvas.getBoundingClientRect();
-        pointer.set(
-          ((mouse.x - bounds.left) / bounds.width) * 2 - 1,
-          -((mouse.y - bounds.top) / bounds.height) * 2 + 1,
-        );
-        camera.updateMatrixWorld();
-        cube.updateWorldMatrix(true, false);
-        raycaster.setFromCamera(pointer, camera);
-        if (raycaster.intersectObject(cube, false).length > 0) {
-          hoverGroup.scale.setScalar(1.08);
-          // Scale about the cube's center, not the origin, preserving its world-space bob.
-          hoverGroup.position.copy(cube.position).multiplyScalar(1 - 1.08);
-        }
+      const hovered = mouse !== null && hitCube(mouse.x, mouse.y);
+      if (hovered || drag) {
+        hoverGroup.scale.setScalar(1.08);
+        // Scale about the cube's center, not the origin, preserving its world-space bob.
+        hoverGroup.position.copy(cube.position).multiplyScalar(1 - 1.08);
       }
+      canvas.style.cursor = drag ? 'grabbing' : hovered ? 'grab' : '';
       renderer.render(scene, camera);
     };
     const movePointer = (event: PointerEvent) => {
       if (event.pointerType !== 'mouse') return;
       mouse = { x: event.clientX, y: event.clientY };
+      if (drag && event.pointerId === drag.pointerId) {
+        if ((event.buttons & 1) === 0) {
+          endDrag();
+          return;
+        }
+        const dx = (event.clientX - drag.x) * 0.01;
+        const dy = (event.clientY - drag.y) * 0.01;
+        manualRotation.x += dy;
+        manualRotation.y += dx;
+        cube.rotation.x += dy;
+        cube.rotation.y += dx;
+        drag.x = event.clientX;
+        drag.y = event.clientY;
+      }
       render();
+    };
+    const startDrag = (event: PointerEvent) => {
+      if (event.pointerType !== 'mouse' || event.button !== 0 || drag) return;
+      mouse = { x: event.clientX, y: event.clientY };
+      // Match hover's normal-size hit-test boundary, not its enlarged appearance.
+      hoverGroup.scale.setScalar(1);
+      hoverGroup.position.set(0, 0, 0);
+      if (hitCube(event.clientX, event.clientY)) {
+        canvas.setPointerCapture(event.pointerId);
+        drag = { pointerId: event.pointerId, x: event.clientX, y: event.clientY };
+        event.preventDefault();
+      }
+      render();
+    };
+    const endDrag = (event?: PointerEvent) => {
+      if (!drag || (event && event.pointerId !== drag.pointerId)) return;
+      const pointerId = drag.pointerId;
+      drag = null;
+      if (canvas.hasPointerCapture(pointerId)) canvas.releasePointerCapture(pointerId);
+      render();
+    };
+    const cancelPointer = (event?: PointerEvent) => {
+      endDrag(event);
+      clearPointer();
     };
     const clearPointer = () => {
       mouse = null;
@@ -122,8 +166,12 @@ export default function App() {
     };
     canvas.addEventListener('pointermove', movePointer);
     canvas.addEventListener('pointerleave', clearPointer);
-    canvas.addEventListener('pointercancel', clearPointer);
-    window.addEventListener('blur', clearPointer);
+    canvas.addEventListener('pointerdown', startDrag);
+    canvas.addEventListener('pointerup', endDrag);
+    canvas.addEventListener('pointercancel', cancelPointer);
+    canvas.addEventListener('lostpointercapture', cancelPointer);
+    const blurPointer = () => cancelPointer();
+    window.addEventListener('blur', blurPointer);
     // Update the existing scene, without resetting animation or the counter.
     updateThemeRef.current = (light) => {
       scene.background = new THREE.Color(light ? '#eef2f7' : '#111318');
@@ -193,10 +241,10 @@ export default function App() {
       const elapsed = (time - start) / 1000;
       // A small four-second bob in world space, independent of the cube's spin.
       cube.position.y = Math.sin(elapsed * Math.PI / 2) * 0.15;
-      cube.rotation.x = 0.4 + elapsed * 0.3;
+      cube.rotation.x = 0.4 + elapsed * 0.3 + manualRotation.x;
       const yRotation = elapsed * 0.5;
-      cube.rotation.y = 0.5 + yRotation;
-      // Count whole Y-axis turns traveled, excluding the initial orientation.
+      cube.rotation.y = 0.5 + yRotation + manualRotation.y;
+      // Count automatic Y-axis turns, excluding initial tilt and manual adjustments.
       const fullRotations = Math.floor(yRotation / (2 * Math.PI));
       if (fullRotations !== lastCompletedRotations) {
         lastCompletedRotations = fullRotations;
@@ -220,8 +268,13 @@ export default function App() {
       window.removeEventListener('resize', resize);
       canvas.removeEventListener('pointermove', movePointer);
       canvas.removeEventListener('pointerleave', clearPointer);
-      canvas.removeEventListener('pointercancel', clearPointer);
-      window.removeEventListener('blur', clearPointer);
+      canvas.removeEventListener('pointerdown', startDrag);
+      canvas.removeEventListener('pointerup', endDrag);
+      canvas.removeEventListener('pointercancel', cancelPointer);
+      canvas.removeEventListener('lostpointercapture', cancelPointer);
+      window.removeEventListener('blur', blurPointer);
+      endDrag();
+      canvas.style.cursor = '';
       motion.removeEventListener('change', updateMotion);
       document.removeEventListener('visibilitychange', resetFps);
       starGeometry.dispose();

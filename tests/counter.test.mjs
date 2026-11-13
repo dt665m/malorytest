@@ -28,7 +28,12 @@ function mount(reducedMotion = false) {
     addEventListener: (name, callback) => listeners.set('document:' + name, callback),
     removeEventListener: (name) => listeners.delete('document:' + name),
   };
+  const captures = new Set();
   const canvas = {
+    style: {},
+    setPointerCapture: (id) => captures.add(id),
+    hasPointerCapture: (id) => captures.has(id),
+    releasePointerCapture: (id) => captures.delete(id),
     clientWidth: 800, clientHeight: 600,
     getBoundingClientRect() {
       return { left: 20, top: 30, width: this.clientWidth, height: this.clientHeight };
@@ -130,7 +135,13 @@ function mount(reducedMotion = false) {
   };
   render();
   return {
-    counts, cube, renderer, camera, resources, listeners,
+    counts, cube, renderer, camera, resources, listeners, canvas, captures,
+    dispatch(name, overrides = {}) {
+      listeners.get('canvas:' + name)({
+        clientX: 420, clientY: 330, pointerType: 'mouse', pointerId: 1,
+        button: 0, buttons: 1, preventDefault() {}, ...overrides,
+      });
+    },
     get tree() { return tree; },
     get stateUpdates() { return stateUpdates; },
     get fps() {
@@ -635,6 +646,171 @@ test('shape toggle renders immediately with reduced motion and survives resizing
   const draws = app.renderer.renderCount;
   app.toggleShape();
   assert.equal(app.renderer.renderCount, draws, 'unmounted control cannot use disposed resources');
+});
+
+test('drag redraws do not inflate FPS or restart reduced-motion animation', () => {
+  const app = mount(true);
+  app.setSize('Large');
+  app.dispatch('pointerdown');
+  for (let step = 1; step <= 60; step++) {
+    app.dispatch('pointermove', { clientX: 420 + step, clientY: 330 + step });
+  }
+  assert.equal(app.running, false);
+  assert.deepEqual([...app.fps.props.children], [0, ' FPS']);
+  app.motion(false);
+  for (let frame = 0; frame <= 30; frame++) {
+    app.dispatch('pointermove', { clientX: 480 + frame });
+    app.frame(frame / 60);
+  }
+  assert.deepEqual([...app.fps.props.children], [60, ' FPS'],
+    'only animation frames contribute, not interleaved drag redraws');
+  app.visibility(true);
+  assert.deepEqual([...app.fps.props.children], [0, ' FPS']);
+  app.listeners.get('blur')();
+  assert.equal(app.captures.size, 0);
+  app.frame(10);
+  assert.deepEqual([...app.fps.props.children], [0, ' FPS']);
+  app.visibility(false);
+  for (let frame = 0; frame <= 15; frame++) app.frame(20 + frame / 30);
+  assert.deepEqual([...app.fps.props.children], [30, ' FPS']);
+  app.motion(true);
+  app.dispatch('pointerdown');
+  app.dispatch('pointermove', { clientX: 440 });
+  assert.equal(app.running, false);
+  assert.deepEqual([...app.fps.props.children], [0, ' FPS']);
+  app.unmount();
+  assert.equal(app.listeners.size, 0);
+});
+
+test('Large cube clears the world-anchored floor glow while dragged at varied angles', () => {
+  for (const reducedMotion of [false, true]) {
+    const app = mount(reducedMotion);
+    const floor = app.renderer.scene.children.find((child) => child.geometry instanceof THREE.PlaneGeometry);
+    const floorPosition = floor.position.clone();
+    app.setSize('Large');
+    app.frame(3); // Lowest point of the automatic bob.
+    app.dispatch('pointerdown');
+    assert.ok(app.captures.has(1));
+    for (let step = 0; step < 40; step++) {
+      app.dispatch('pointermove', { clientX: 420 + step * 35, clientY: 330 - step * 23 });
+      assert.equal(app.cube.parent.scale.x, 1.08, 'active drag keeps hover enlargement');
+      assert.ok(new THREE.Box3().setFromObject(app.cube, true).min.y > floor.position.y,
+        'Large dragged cube stays above the glow');
+      assert.ok(floor.position.equals(floorPosition), 'drag does not move the floor');
+    }
+    app.dispatch('pointerup');
+    app.unmount();
+    assert.equal(app.listeners.size, 0);
+  }
+});
+
+test('drag hit-testing respects selected size and size changes preserve manual rotation', () => {
+  for (const reducedMotion of [false, true]) {
+    const app = mount(reducedMotion);
+    app.setSize('Small');
+    const initial = app.cube.rotation.clone();
+    app.dispatch('pointerdown', { clientX: 500 });
+    assert.equal(app.captures.size, 0, 'outside the small cube');
+    app.setSize('Large');
+    app.dispatch('pointerdown', { clientX: 500 });
+    assert.ok(app.captures.has(1), 'same point is inside the large cube');
+    app.dispatch('pointermove', { clientX: 550, clientY: 350 });
+    assert.ok(Math.abs(app.cube.rotation.y - initial.y - 0.5) < 1e-10);
+    assert.ok(Math.abs(app.cube.rotation.x - initial.x - 0.2) < 1e-10);
+    const rotated = app.cube.rotation.clone();
+    app.setSize('Small');
+    assert.equal(app.cube.scale.x, 0.65);
+    assert.ok(app.cube.rotation.equals(rotated), 'changing size does not reset manual rotation');
+    assert.ok(app.captures.has(1), 'size changes do not interrupt an active drag');
+    app.dispatch('pointerup');
+    app.setSize('Medium');
+    app.frame(2);
+    assert.equal(app.cube.scale.x, 1);
+    assert.ok(Math.abs(app.cube.rotation.y - (reducedMotion ? 1 : 2)) < 1e-10,
+      'manual offset survives size changes and subsequent animation');
+    app.unmount();
+    assert.equal(app.listeners.size, 0);
+  }
+});
+
+test('mouse dragging rotates both axes, keeps offsets after release, and leaves automatic counts intact', () => {
+  const app = mount();
+  app.frame(2);
+  const initial = app.cube.rotation.clone();
+  app.dispatch('pointerdown');
+  assert.ok(app.captures.has(1));
+  assert.equal(app.canvas.style.cursor, 'grabbing');
+  app.leave();
+  app.dispatch('pointermove', { clientX: 720, clientY: 430 });
+  assert.ok(Math.abs(app.cube.rotation.y - initial.y - 3) < 1e-10);
+  assert.ok(Math.abs(app.cube.rotation.x - initial.x - 1) < 1e-10);
+  app.frame(3);
+  assert.equal(app.cube.rotation.y, 0.5 + 1.5 + 3);
+  assert.equal(app.cube.rotation.x, 0.4 + 0.9 + 1);
+  app.dispatch('pointerup', { clientX: 720, clientY: 430, buttons: 0 });
+  assert.equal(app.captures.size, 0);
+  const released = app.cube.rotation.clone();
+  app.dispatch('pointermove', { clientX: 800, clientY: 500, buttons: 0 });
+  assert.ok(app.cube.rotation.equals(released), 'no drag after mouse release');
+  app.toggleTheme();
+  app.toggleShape();
+  assert.ok(app.cube.rotation.equals(released), 'toggles preserve manual orientation');
+  app.frame(4 * Math.PI);
+  assert.equal(app.cube.rotation.y, 0.5 + 2 * Math.PI + 3);
+  assert.deepEqual(app.counts, [0, 1], 'counter still counts automatic turns only');
+  app.unmount();
+  assert.equal(app.listeners.size, 0);
+  assert.equal(app.canvas.style.cursor, '');
+});
+
+test('only a left mouse press on the mesh starts dragging', () => {
+  const app = mount(true);
+  const initial = app.cube.rotation.clone();
+  for (const overrides of [
+    { clientX: 20, clientY: 30 },
+    { button: 2, buttons: 2 },
+    { pointerType: 'touch' },
+    { pointerType: 'pen' },
+  ]) {
+    app.dispatch('pointerdown', overrides);
+    app.dispatch('pointermove', { clientX: 450, clientY: 350 });
+    assert.equal(app.captures.size, 0);
+    assert.ok(app.cube.rotation.equals(initial));
+  }
+  app.pointer(420, 330);
+  assert.equal(app.canvas.style.cursor, 'grab');
+  app.dispatch('pointerdown');
+  app.dispatch('pointermove', { pointerId: 2, clientX: 600 });
+  assert.ok(app.cube.rotation.equals(initial), 'another pointer cannot steer the drag');
+  app.dispatch('pointerup', { pointerId: 2 });
+  assert.ok(app.captures.has(1), 'another pointer cannot end the drag');
+  app.dispatch('pointermove', { clientX: 470, clientY: 300 });
+  assert.equal(app.cube.rotation.y, 1);
+  assert.ok(Math.abs(app.cube.rotation.x - 0.1) < 1e-10);
+  assert.equal(app.running, false, 'manual input works without automatic animation');
+  app.unmount();
+  assert.equal(app.captures.size, 0);
+});
+
+test('drag cancellation, capture loss, blur, and missing buttons stop rotation safely', () => {
+  for (const reason of ['pointercancel', 'lostpointercapture', 'blur', 'buttons']) {
+    const app = mount(true);
+    app.dispatch('pointerdown');
+    app.dispatch('pointermove', { clientX: 470 });
+    if (reason === 'blur') app.listeners.get('blur')({ type: 'blur' });
+    else if (reason === 'buttons') app.dispatch('pointermove', { buttons: 0 });
+    else app.dispatch(reason);
+    assert.equal(app.captures.size, 0, reason);
+    assert.notEqual(app.canvas.style.cursor, 'grabbing', reason);
+    const rotation = app.cube.rotation.clone();
+    app.dispatch('pointermove', { clientX: 600 });
+    assert.ok(app.cube.rotation.equals(rotation), reason);
+    app.dispatch('pointerdown');
+    assert.ok(app.captures.has(1), 'a new drag can start after ' + reason);
+    app.unmount();
+    assert.equal(app.captures.size, 0);
+    assert.equal(app.listeners.size, 0);
+  }
 });
 
 test('counts complete Y turns, not initial tilt, partial turns, or frames', () => {
