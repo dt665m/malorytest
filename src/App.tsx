@@ -18,6 +18,38 @@ export default function App() {
   const updateSizeRef = useRef<((size: CubeSize) => void) | null>(null);
   const [fps, setFps] = useState(0);
   const rotationAngleRef = useRef<HTMLOutputElement>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [fullscreenSupported, setFullscreenSupported] = useState(false);
+  const [fullscreenPending, setFullscreenPending] = useState(false);
+  const [fullscreenError, setFullscreenError] = useState('');
+
+  useEffect(() => {
+    setFullscreenSupported(Boolean(document.fullscreenEnabled));
+    const syncFullscreen = () => {
+      setIsFullscreen(Boolean(document.fullscreenElement));
+      setFullscreenError('');
+    };
+    syncFullscreen();
+    document.addEventListener('fullscreenchange', syncFullscreen);
+    return () => document.removeEventListener('fullscreenchange', syncFullscreen);
+  }, []);
+
+  const toggleFullscreen = async () => {
+    setFullscreenPending(true);
+    setFullscreenError('');
+    try {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen();
+      } else {
+        // Fullscreen the page, not just the canvas, so controls remain available.
+        await document.documentElement.requestFullscreen();
+      }
+    } catch {
+      setFullscreenError('Fullscreen could not be changed. Please try again.');
+    } finally {
+      setFullscreenPending(false);
+    }
+  };
 
   useEffect(() => {
     const canvas = canvasRef.current!;
@@ -377,6 +409,16 @@ export default function App() {
       <output className="rotation-angle" ref={rotationAngleRef} aria-live="off">
         {rotationLabel(0.5)}
       </output>
+      <button
+        type="button"
+        className="fullscreen-toggle"
+        disabled={!fullscreenSupported || fullscreenPending}
+        title={!fullscreenSupported ? 'Fullscreen is not supported in this browser' : undefined}
+        onClick={toggleFullscreen}
+      >
+        {isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+      </button>
+      <p className="fullscreen-status" role="status">{fullscreenError}</p>
     </div>
   );
 }
