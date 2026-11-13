@@ -23,3 +23,5 @@ pnpm deploy:check        # Build and validate deployment without publishing
 ```
 
 Cloudflare deploys every push to `main` with `wrangler deploy`, which runs `pnpm build` first (`build.command` in `wrangler.jsonc`). See `AGENTS.md`.
+
+Preview builds run on every pull request.
