@@ -37,8 +37,8 @@ export default function App() {
     const start = performance.now();
     const animate = (time: number) => {
       const elapsed = (time - start) / 1000;
-      cube.rotation.x = 0.4 - elapsed * 0.3;
-      cube.rotation.y = 0.5 - elapsed * 0.5;
+      cube.rotation.x = 0.4 + elapsed * 0.3;
+      cube.rotation.y = 0.5 + elapsed * 0.5;
       renderer.render(scene, camera);
     };
     const updateMotion = () => {
