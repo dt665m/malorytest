@@ -1,8 +1,9 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 
 export default function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [completedRotations, setCompletedRotations] = useState(0);
 
   useEffect(() => {
     const canvas = canvasRef.current!;
@@ -38,10 +39,19 @@ export default function App() {
 
     const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
     const start = performance.now();
+    let lastCompletedRotations = 0;
+    setCompletedRotations(0);
     const animate = (time: number) => {
       const elapsed = (time - start) / 1000;
       cube.rotation.x = 0.4 + elapsed * 0.3;
-      cube.rotation.y = 0.5 + elapsed * 0.5;
+      const yRotation = elapsed * 0.5;
+      cube.rotation.y = 0.5 + yRotation;
+      // Count whole Y-axis turns traveled, excluding the initial orientation.
+      const fullRotations = Math.floor(yRotation / (2 * Math.PI));
+      if (fullRotations !== lastCompletedRotations) {
+        lastCompletedRotations = fullRotations;
+        setCompletedRotations(fullRotations);
+      }
       renderer.render(scene, camera);
     };
     const updateMotion = () => {
@@ -60,5 +70,12 @@ export default function App() {
     };
   }, []);
 
-  return <canvas ref={canvasRef} role="img" aria-label="A rotating cube with six differently colored faces" />;
+  return (
+    <>
+      <canvas ref={canvasRef} role="img" aria-label="A rotating cube with six differently colored faces" />
+      <output className="rotation-counter">
+        <strong>{completedRotations}</strong> full Y-axis rotations
+      </output>
+    </>
+  );
 }
