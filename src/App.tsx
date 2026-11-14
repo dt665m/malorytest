@@ -1,5 +1,28 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
+
+const timeFormatter = new Intl.DateTimeFormat(undefined, {
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+});
+
+function Clock() {
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    const interval = window.setInterval(() => setNow(new Date()), 1000);
+    return () => window.clearInterval(interval);
+  }, []);
+
+  const time = timeFormatter.format(now);
+
+  return (
+    <time className="clock" dateTime={now.toISOString()} aria-label={`Current local time: ${time}`}>
+      {time}
+    </time>
+  );
+}
 
 export default function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -76,5 +99,10 @@ export default function App() {
     };
   }, []);
 
-  return <canvas ref={canvasRef} role="img" aria-label="A rotating cube. Click the cube to change its color." />;
+  return (
+    <>
+      <canvas ref={canvasRef} role="img" aria-label="A rotating cube. Click the cube to change its color." />
+      <Clock />
+    </>
+  );
 }
