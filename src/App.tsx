@@ -44,9 +44,30 @@ export default function App() {
     const cube = new THREE.Mesh(geometry, materials);
 
     cube.rotation.set(0.4, 0.5, 0);
+    // Keep the rings attached to the cube so they share its motion.
+    // Separate annuli leave visible gaps like Saturn's ring divisions.
+    const ringBands = [
+      { inner: 0.95, outer: 1.22, color: '#d6bd89' },
+      { inner: 1.25, outer: 1.38, color: '#a68b65' },
+      { inner: 1.42, outer: 1.6, color: '#ead8b1' },
+    ];
+    const rings = ringBands.map(({ inner, outer, color }) => {
+      const ring = new THREE.Mesh(
+        new THREE.RingGeometry(inner, outer, 128),
+        new THREE.MeshStandardMaterial({
+          color,
+          side: THREE.DoubleSide,
+          roughness: 1,
+        }),
+      );
+      ring.rotation.x = -Math.PI / 2;
+      cube.add(ring);
+      return ring;
+    });
+    // Cloning also shares ring geometry/materials; dispose those only once.
     // Share the six layered materials so both objects receive every cat refresh.
     const secondCube = cube.clone();
-    const objectOffset = 1.1;
+    const objectOffset = 2.1;
     // Deform each object independently without stretching their separation or orbit.
     const jellyRoots = [cube, secondCube].map((object, index) => {
       const root = new THREE.Group();
@@ -73,8 +94,8 @@ export default function App() {
     const resize = () => {
       const { clientWidth: width, clientHeight: height } = canvas;
       camera.aspect = width / height;
-      // Fit both jumping objects, their orbit, and the stationary flower border in either orientation.
-      const orbitExtent = objectOffset + orbitRadius + jumpHeight + 0.45 + 1.1;
+      // Fit both jumping ring systems (including jelly stretch), their orbit, and the stationary flower border in either orientation.
+      const orbitExtent = objectOffset + orbitRadius + jumpHeight + 0.45 + 2.0;
       const flowerBounds = new THREE.Box3().setFromObject(flowers.group);
       const flowerExtent = Math.max(
         Math.abs(flowerBounds.min.x), Math.abs(flowerBounds.max.x),
@@ -155,6 +176,10 @@ export default function App() {
       disposeCatEyes();
       disposeAnimals();
       flowers.dispose();
+      for (const ring of rings) {
+        ring.geometry.dispose();
+        ring.material.dispose();
+      }
       geometry.dispose();
       materials.forEach((material) => material.dispose());
       cats.forEach(({ texture }) => texture.dispose());
@@ -163,5 +188,5 @@ export default function App() {
   }, [faceted]);
 
   const shapeDescription = faceted ? '26-face beveled cubes' : 'spheres';
-  return <canvas ref={canvasRef} role="img" aria-label={`Two rotating, jumping purple jelly ${shapeDescription} that bounce, squash and wobble moving in a circle with six Rubik’s-style 3×3 panelled regions, each with a golden slit-eyed cat, laughing eagle and laughing turtle; the cats change every full turn; surrounded by colorful brick-built flowers`} />;
+  return <canvas ref={canvasRef} role="img" aria-label={`Two rotating, jumping purple jelly ${shapeDescription} with Saturn-like rings that bounce, squash and wobble moving in a circle with six Rubik’s-style 3×3 panelled regions, each with a golden slit-eyed cat, laughing eagle and laughing turtle; the cats change every full turn; surrounded by colorful brick-built flowers`} />;
 }
