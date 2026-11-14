@@ -26,7 +26,7 @@ export default function App() {
       positions.setXYZ(index, direction.x * 0.75, direction.y * 0.75, direction.z * 0.75);
     }
     const cats = Array.from({ length: 6 }, (_, face) => createCatTexture(face));
-    const materials = cats.map(({ texture }) => new THREE.MeshStandardMaterial({ map: texture }));
+    const materials = cats.map(({ texture }) => new THREE.MeshStandardMaterial({ color: '#9333ea', map: texture }));
     const cube = new THREE.Mesh(geometry, materials);
     cube.rotation.set(0.4, 0.5, 0);
     scene.add(cube, new THREE.HemisphereLight(0xffffff, 0x334155, 2));
@@ -78,5 +78,5 @@ export default function App() {
     };
   }, []);
 
-  return <canvas ref={canvasRef} role="img" aria-label="A rotating sphere with six illustrated cat regions; the cats change every full turn" />;
+  return <canvas ref={canvasRef} role="img" aria-label="A rotating purple sphere with six illustrated cat regions; the cats change every full turn" />;
 }
