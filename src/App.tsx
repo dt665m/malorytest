@@ -34,13 +34,18 @@ export default function App() {
     const disposeAnimals = addLaughingAnimals(materials);
     const cube = new THREE.Mesh(geometry, materials);
     cube.rotation.set(0.4, 0.5, 0);
+    // Share the six layered materials so both objects receive every cat refresh.
+    const secondCube = cube.clone();
+    const objectOffset = 1.1;
+    cube.position.x = -objectOffset;
+    secondCube.position.x = objectOffset;
     // Keep the orbit and jump independent of the geometry and local rotation.
     const orbitRadius = 0.65;
     const jumpHeight = 0.65;
     const orbit = new THREE.Group();
     const jumpRoot = new THREE.Group();
     orbit.position.x = orbitRadius;
-    jumpRoot.add(cube);
+    jumpRoot.add(cube, secondCube);
     orbit.add(jumpRoot);
     scene.add(orbit, new THREE.HemisphereLight(0xffffff, 0x334155, 2));
     const light = new THREE.DirectionalLight(0xffffff, 3);
@@ -53,8 +58,8 @@ export default function App() {
     const resize = () => {
       const { clientWidth: width, clientHeight: height } = canvas;
       camera.aspect = width / height;
-      // Fit the jumping orbit and the stationary flower border in either orientation.
-      const orbitExtent = orbitRadius + jumpHeight + Math.sqrt(3) / 2;
+      // Fit both jumping objects, their orbit, and the stationary flower border in either orientation.
+      const orbitExtent = objectOffset + orbitRadius + jumpHeight + Math.sqrt(3) / 2;
       const flowerBounds = new THREE.Box3().setFromObject(flowers.group);
       const flowerExtent = Math.max(
         Math.abs(flowerBounds.min.x), Math.abs(flowerBounds.max.x),
@@ -87,6 +92,7 @@ export default function App() {
       );
       cube.rotation.x = 0.4 + elapsed * 0.3;
       cube.rotation.y = 0.5 + elapsed * 0.5;
+      secondCube.rotation.copy(cube.rotation);
       // One turn is a full revolution around the primary (Y) rotation axis.
       // Derive it from the angle so skipped frames cannot miss a refresh.
       const turn = Math.floor((cube.rotation.y - 0.5) / (Math.PI * 2));
@@ -123,5 +129,5 @@ export default function App() {
     };
   }, []);
 
-  return <canvas ref={canvasRef} role="img" aria-label="A rotating, jumping purple sphere moving in a circle with six Rubik’s-style 3×3 panelled regions, each with a cat, laughing eagle and laughing turtle; the cats change every full turn; surrounded by colorful brick-built flowers" />;
+  return <canvas ref={canvasRef} role="img" aria-label="Two rotating, jumping purple spheres moving in a circle with six Rubik’s-style 3×3 panelled regions, each with a cat, laughing eagle and laughing turtle; the cats change every full turn; surrounded by colorful brick-built flowers" />;
 }
