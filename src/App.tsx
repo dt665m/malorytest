@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { createCatTexture } from './catTexture';
 import { addLaughingAnimals } from './laughingAnimals';
+import { applyRubiksPanels } from './rubiksPanels';
 
 export default function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -28,6 +29,7 @@ export default function App() {
     }
     const cats = Array.from({ length: 6 }, (_, face) => createCatTexture(face));
     const materials = cats.map(({ texture }) => new THREE.MeshStandardMaterial({ color: '#9333ea', map: texture }));
+    materials.forEach(applyRubiksPanels);
     const disposeAnimals = addLaughingAnimals(materials);
     const cube = new THREE.Mesh(geometry, materials);
     cube.rotation.set(0.4, 0.5, 0);
@@ -99,5 +101,5 @@ export default function App() {
     };
   }, []);
 
-  return <canvas ref={canvasRef} role="img" aria-label="A rotating purple sphere moving in a circle with six illustrated regions, each with a cat, laughing eagle and laughing turtle; the cats change every full turn" />;
+  return <canvas ref={canvasRef} role="img" aria-label="A rotating purple sphere moving in a circle with six Rubik’s-style 3×3 panelled regions, each with a cat, laughing eagle and laughing turtle; the cats change every full turn" />;
 }
