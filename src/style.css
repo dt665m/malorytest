@@ -70,3 +70,27 @@ canvas {
 .speed-control small {
   color: #cbd5e1;
 }
+
+.rotation-control {
+  display: block;
+  width: 100%;
+  margin-top: 0.75rem;
+  min-height: 44px;
+  padding: 0.75rem 1.25rem;
+  border: 1px solid #64748b;
+  border-radius: 0.5rem;
+  background: #1e293b;
+  color: #fff;
+  font: 600 1rem system-ui, sans-serif;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.rotation-control:hover {
+  background: #334155;
+}
+
+.rotation-control:focus-visible {
+  outline: 3px solid #93c5fd;
+  outline-offset: 4px;
+}
