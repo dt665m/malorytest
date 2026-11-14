@@ -1,47 +1,14 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
-
-const timeFormatter = new Intl.DateTimeFormat(undefined, {
-  hour: '2-digit',
-  minute: '2-digit',
-  second: '2-digit',
-});
-
-function Clock() {
-  const [now, setNow] = useState(() => new Date());
-
-  useEffect(() => {
-    const interval = window.setInterval(() => setNow(new Date()), 1000);
-    return () => window.clearInterval(interval);
-  }, []);
-
-  const time = timeFormatter.format(now);
-
-  return (
-    <time className="clock" dateTime={now.toISOString()} aria-label={`Current local time: ${time}`}>
-      {time}
-    </time>
-  );
-}
 
 export default function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [isLightBackground, setIsLightBackground] = useState(false);
-  const [fullTurns, setFullTurns] = useState(0);
-  const [speed, setSpeed] = useState(1);
-  const speedRef = useRef(1);
-  const [isPaused, setIsPaused] = useState(
-    () => window.matchMedia('(prefers-reduced-motion: reduce)').matches,
-  );
-  const setRotationPausedRef = useRef<(paused: boolean) => void>(() => {});
-  const [isWireframe, setIsWireframe] = useState(false);
-  const setWireframeRef = useRef<(wireframe: boolean) => void>(() => {});
 
   useEffect(() => {
     const canvas = canvasRef.current!;
-    // Keep the canvas transparent so the page theme also updates while paused.
-    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
     const scene = new THREE.Scene();
+    scene.background = new THREE.Color('#111318');
 
     const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
     camera.position.z = 5;
@@ -55,11 +22,6 @@ export default function App() {
     light.position.set(3, 5, 4);
     scene.add(light);
 
-    setWireframeRef.current = (wireframe) => {
-      material.wireframe = wireframe;
-      renderer.render(scene, camera);
-    };
-
     const resize = () => {
       const { clientWidth: width, clientHeight: height } = canvas;
       camera.aspect = width / height;
@@ -71,118 +33,23 @@ export default function App() {
     resize();
     window.addEventListener('resize', resize);
 
-    const raycaster = new THREE.Raycaster();
-    const pointer = new THREE.Vector2();
-    const hitsCube = (event: MouseEvent) => {
-      const bounds = canvas.getBoundingClientRect();
-      pointer.set(
-        ((event.clientX - bounds.left) / bounds.width) * 2 - 1,
-        -((event.clientY - bounds.top) / bounds.height) * 2 + 1,
-      );
-      raycaster.setFromCamera(pointer, camera);
-      return raycaster.intersectObject(cube).length > 0;
-    };
-    let drag: { pointerId: number; startX: number; startY: number; x: number; y: number } | null = null;
-    let didDrag = false;
-    const horizontalAxis = new THREE.Vector3(0, 1, 0);
-    const verticalAxis = new THREE.Vector3(1, 0, 0);
-    const startDrag = (event: PointerEvent) => {
-      if (drag || !event.isPrimary || event.button !== 0) return;
-      didDrag = false;
-      if (!hitsCube(event)) return;
-      drag = {
-        pointerId: event.pointerId,
-        startX: event.clientX,
-        startY: event.clientY,
-        x: event.clientX,
-        y: event.clientY,
-      };
-      canvas.setPointerCapture(event.pointerId);
-      canvas.style.cursor = 'grabbing';
-    };
-    const moveDrag = (event: PointerEvent) => {
-      if (!drag) {
-        canvas.style.cursor = hitsCube(event) ? 'grab' : '';
-        return;
-      }
-      if (event.pointerId !== drag.pointerId) return;
-      // Leave small click movements alone, so clicking still changes color.
-      if (!didDrag && Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) < 4) return;
-      didDrag = true;
-      cube.rotateOnWorldAxis(horizontalAxis, (event.clientX - drag.x) * 0.01);
-      cube.rotateOnWorldAxis(verticalAxis, (event.clientY - drag.y) * 0.01);
-      drag.x = event.clientX;
-      drag.y = event.clientY;
-      renderer.render(scene, camera);
-    };
-    const endDrag = (event: PointerEvent) => {
-      if (event.pointerId !== drag?.pointerId) return;
-      drag = null;
-      canvas.style.cursor = '';
-      if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
-    };
-    const changeColor = (event: MouseEvent) => {
-      if (didDrag) {
-        didDrag = false;
-        return;
-      }
-      if (!hitsCube(event)) return;
-
-      // Choose any RGB color except the current one, so every hit changes it.
-      const offset = 1 + Math.floor(Math.random() * 0xffffff);
-      material.color.setHex((material.color.getHex() + offset) % 0x1000000);
-      renderer.render(scene, camera);
-    };
-    canvas.addEventListener('click', changeColor);
-    canvas.addEventListener('pointerdown', startDrag);
-    canvas.addEventListener('pointermove', moveDrag);
-    canvas.addEventListener('pointerup', endDrag);
-    canvas.addEventListener('pointercancel', endDrag);
-    canvas.addEventListener('lostpointercapture', endDrag);
-
     const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
-    let previousTime: number | null = null;
-    // Count only animated Y-axis travel, excluding the initial display angle.
-    let totalRotationY = 0;
-    let completedTurns = 0;
+    const start = performance.now();
     const animate = (time: number) => {
-      const delta = previousTime === null ? 0 : Math.min((time - previousTime) / 1000, 0.1);
-      previousTime = time;
-      if (!drag) {
-        cube.rotation.x += delta * 0.3 * speedRef.current;
-        const rotationY = delta * 0.5 * speedRef.current;
-        cube.rotation.y += rotationY;
-        totalRotationY += rotationY;
-        const nextFullTurns = Math.floor(totalRotationY / (2 * Math.PI));
-        if (nextFullTurns !== completedTurns) {
-          completedTurns = nextFullTurns;
-          setFullTurns(nextFullTurns);
-        }
-      }
+      const elapsed = (time - start) / 1000;
+      cube.rotation.x = 0.4 + elapsed * 0.3;
+      cube.rotation.y = 0.5 + elapsed * 0.5;
       renderer.render(scene, camera);
-    };
-    setRotationPausedRef.current = (paused) => {
-      previousTime = null;
-      renderer.setAnimationLoop(paused ? null : animate);
     };
     const updateMotion = () => {
-      if (motion.matches) setIsPaused(true);
+      renderer.setAnimationLoop(motion.matches ? null : animate);
     };
+    updateMotion();
     motion.addEventListener('change', updateMotion);
 
     return () => {
       renderer.setAnimationLoop(null);
-      setRotationPausedRef.current = () => {};
-      setWireframeRef.current = () => {};
       window.removeEventListener('resize', resize);
-      canvas.removeEventListener('click', changeColor);
-      canvas.removeEventListener('pointerdown', startDrag);
-      canvas.removeEventListener('pointermove', moveDrag);
-      canvas.removeEventListener('pointerup', endDrag);
-      canvas.removeEventListener('pointercancel', endDrag);
-      canvas.removeEventListener('lostpointercapture', endDrag);
-      if (drag && canvas.hasPointerCapture(drag.pointerId)) canvas.releasePointerCapture(drag.pointerId);
-      canvas.style.cursor = '';
       motion.removeEventListener('change', updateMotion);
       geometry.dispose();
       material.dispose();
@@ -190,67 +57,5 @@ export default function App() {
     };
   }, []);
 
-  useEffect(() => {
-    setRotationPausedRef.current(isPaused);
-  }, [isPaused]);
-
-  useEffect(() => {
-    setWireframeRef.current(isWireframe);
-  }, [isWireframe]);
-
-  return (
-    <div className="page" data-theme={isLightBackground ? 'light' : 'dark'}>
-      <canvas ref={canvasRef} role="img" aria-label="A rotating cube. Drag the cube to rotate it by hand. Click the cube to change its color." />
-      <Clock />
-      <div className="speed-control">
-        <div className="speed-heading" title="Complete 360° rotations around the vertical (Y) axis since page load.">
-          <span id="full-turns-label">Full turns (Y axis)</span>
-          <output aria-labelledby="full-turns-label">{fullTurns}</output>
-        </div>
-        <div className="speed-heading">
-          <label htmlFor="cube-speed">Spin speed</label>
-          <output htmlFor="cube-speed">{speed === 0 ? 'Paused' : `${speed.toFixed(1)}×`}</output>
-        </div>
-        <input
-          id="cube-speed"
-          type="range"
-          min="0"
-          max="3"
-          step="0.1"
-          value={speed}
-          aria-valuetext={speed === 0 ? 'Paused' : `${speed.toFixed(1)} times normal speed`}
-          aria-describedby="motion-note"
-          onChange={(event) => {
-            const nextSpeed = event.currentTarget.valueAsNumber;
-            speedRef.current = nextSpeed;
-            setSpeed(nextSpeed);
-          }}
-        />
-        <small id="motion-note">Reduced-motion preferences pause rotation.</small>
-        <button
-          className="rotation-control"
-          type="button"
-          onClick={() => setIsPaused((paused) => !paused)}
-        >
-          {isPaused ? 'Resume rotation' : 'Pause rotation'}
-        </button>
-        <button
-          className="rotation-control"
-          type="button"
-          aria-pressed={isLightBackground}
-          onClick={() => setIsLightBackground((light) => !light)}
-        >
-          Light background
-        </button>
-        <button
-          className="rotation-control"
-          type="button"
-          aria-pressed={isWireframe}
-          onClick={() => setIsWireframe((wireframe) => !wireframe)}
-        >
-          Wireframe: {isWireframe ? 'On' : 'Off'}
-        </button>
-      </div>
-    </div>
-  );
+  return <canvas ref={canvasRef} role="img" aria-label="A rotating blue cube" />;
 }
