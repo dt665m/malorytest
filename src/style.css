@@ -20,15 +20,25 @@ canvas {
   height: 100%;
 }
 
+.scene-controls {
+  position: absolute;
+  left: max(1rem, env(safe-area-inset-left));
+  right: max(1rem, env(safe-area-inset-right));
+  bottom: max(1.5rem, env(safe-area-inset-bottom));
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 .background-selector {
-  position: fixed;
-  top: 1rem;
-  left: 1rem;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 0.5rem;
-  max-width: calc(100% - 3rem);
+  max-width: 100%;
+  box-sizing: border-box;
   padding: 0.5rem;
   border-radius: 0.5rem;
   background: #111318e6;
@@ -41,4 +51,127 @@ canvas {
   padding: 0.35rem;
   color-scheme: dark;
   font: inherit;
+}
+
+.experience {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  color: #fff;
+  font-family: system-ui, sans-serif;
+}
+
+/* Presentation only: leave the scene, its background and pointer input intact. */
+.national-day {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.national-day__ribbons {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 8px;
+  background: linear-gradient(90deg, #d82435 0 33.33%, #fff 33.33% 66.66%, #00834a 66.66%);
+}
+
+.national-day__greeting {
+  position: absolute;
+  top: clamp(1.5rem, 5vh, 3.5rem);
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(90%, 34rem);
+  box-sizing: border-box;
+  text-align: center;
+  padding: 0.8rem 1rem 1rem;
+  border-radius: 1rem;
+  background: #111318e8;
+  border-bottom: 2px solid #00834a;
+}
+
+.national-day__eyebrow {
+  margin: 0 0 0.35rem;
+  color: #ffb9c0;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.national-day h1 {
+  margin: 0;
+  font-size: clamp(1.4rem, 4vw, 2.5rem);
+  line-height: 1.15;
+  font-weight: 650;
+}
+
+.national-day__arabic {
+  margin: 0.35rem 0 0;
+  font-size: clamp(1rem, 3vw, 1.5rem);
+}
+
+.national-day__message {
+  margin: 0.5rem 0 0;
+  color: #cbd8d0;
+  font-size: 0.8rem;
+}
+
+.national-day__trim {
+  position: absolute;
+  inset: auto 0 0;
+  height: 8px;
+  background: linear-gradient(90deg, #00834a 0 33.33%, #fff 33.33% 66.66%, #d82435 66.66%);
+}
+
+.theme-picker {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid #69766f;
+  border-radius: 0.65rem;
+  background: #111318f5;
+  font-size: 0.8rem;
+}
+
+.theme-picker select {
+  max-width: 100%;
+  min-height: 2.5rem;
+  border: 1px solid #69766f;
+  border-radius: 0.3rem;
+  padding: 0.35rem;
+  color: #fff;
+  background: #202923;
+  font: inherit;
+  color-scheme: dark;
+}
+
+.theme-picker select:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 3px;
+}
+
+/* Keep the greeting away from the central object on short landscape screens. */
+@media (max-height: 540px) and (min-width: 640px) {
+  .national-day__greeting {
+    left: 1rem;
+    top: 1.5rem;
+    transform: none;
+    width: 28%;
+    padding: 0.7rem;
+  }
+
+  .national-day h1 {
+    font-size: 1.25rem;
+  }
+}
+
+@media (max-height: 380px) {
+  .national-day__message,
+  .national-day__eyebrow {
+    display: none;
+  }
 }
