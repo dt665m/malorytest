@@ -13,7 +13,17 @@ export default function App() {
     const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
     camera.position.z = 5;
 
-    const geometry = new THREE.BoxGeometry();
+    // Round the cube into a sphere while retaining all six material groups and
+    // their UVs, so each surface can still carry independently refreshed imagery.
+    const geometry = new THREE.BoxGeometry(1, 1, 1, 32, 32, 32);
+    const positions = geometry.getAttribute('position');
+    const normals = geometry.getAttribute('normal');
+    const direction = new THREE.Vector3();
+    for (let index = 0; index < positions.count; index += 1) {
+      direction.fromBufferAttribute(positions, index).normalize();
+      normals.setXYZ(index, direction.x, direction.y, direction.z);
+      positions.setXYZ(index, direction.x * 0.75, direction.y * 0.75, direction.z * 0.75);
+    }
     const material = new THREE.MeshStandardMaterial({ color: '#246bff' });
     const cube = new THREE.Mesh(geometry, material);
     cube.rotation.set(0.4, 0.5, 0);
@@ -57,5 +67,5 @@ export default function App() {
     };
   }, []);
 
-  return <canvas ref={canvasRef} role="img" aria-label="A rotating blue cube" />;
+  return <canvas ref={canvasRef} role="img" aria-label="A rotating blue sphere" />;
 }
