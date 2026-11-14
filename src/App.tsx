@@ -11,6 +11,7 @@ import { addCatEyes } from './catEyes';
 import { addLaughingAnimals } from './laughingAnimals';
 import { applyRubiksPanels } from './rubiksPanels';
 import { createLegoFlowers } from './legoFlowers';
+import { createShapeGeometry, readShapeMode } from './shapeGeometry';
 import { createFacetedCubeGeometry } from './createFacetedCubeGeometry';
 import { createSpaceBackground } from './spaceBackground';
 import { createGalaxyBackground } from './galaxyBackground';
@@ -38,12 +39,14 @@ export default function App() {
     ? requestedPalette
     : requestedPalette === 'oman' ? 'oman' : isRedBatman ? 'red' : 'oman';
   const colourDescription = palette === 'oman' ? 'Omani flag-coloured (red, white and green)' : palette;
-  const initiallyButterfly = parameters.get('shape') === 'butterfly';
-  const faceted = parameters.get('shape') === 'faceted';
   // Keep all existing themes intact by opting into the translucent math view.
   const gigachadMode = parameters.get('theme') === 'gigachad';
   const mathMode = parameters.get('theme') === 'math';
-  const shapeDescription = faceted ? '26-face beveled cubes' : mathMode ? 'cubes' : 'spheres';
+  const shape = readShapeMode(window.location.search, mathMode ? 'cube' : 'sphere');
+  const initiallyButterfly = shape === 'butterfly';
+  const faceted = shape === 'faceted';
+  const isCube = shape === 'cube' || (initiallyButterfly && mathMode);
+  const shapeDescription = faceted ? '26-face beveled cubes' : isCube ? 'cubes' : 'spheres';
   const sceneDescription = `Two rotating, jumping ${colourDescription} jelly ${shapeDescription} wearing blue baseball caps with an apple at each of eight corner directions and Saturn-like rings that bounce, squash and wobble moving in a circle with six Rubik’s-style 3×3 panelled regions, each with a golden slit-eyed cat, laughing eagle and laughing turtle; the cats change every full turn; surrounded by colorful brick-built flowers above a framed floor mirror reflecting the scene, against a star-filled space sky${gigachadMode ? '; with monochrome Gigachad portraits layered on each region' : ''}${isRedBatman ? '; wearing red Batman cowls with pointed ears, white eyes, bat emblems and capes' : ''}; an Omani desert eagle lands on the first object and pecks at it; with a five-second green tint every thirty seconds`;
   const [theme, setTheme] = useState<'oman-national-day' | 'original'>('oman-national-day');
 
@@ -73,21 +76,11 @@ export default function App() {
     const mirror = createMirror();
     scene.add(mirror.group);
 
-    // Round the cube into a sphere while retaining all six material groups and
-    // their UVs, so each surface can still carry independently refreshed imagery.
+    // Keep shape selection independent of the shared artwork and accessories.
+    // Explicit sphere mode also overrides the math theme's default cube shape.
     const geometry = faceted
       ? createFacetedCubeGeometry()
-      : new THREE.BoxGeometry(1, 1, 1, 32, 32, 32);
-    if (!faceted && !mathMode) {
-      const positions = geometry.getAttribute('position');
-      const normals = geometry.getAttribute('normal');
-      const direction = new THREE.Vector3();
-      for (let index = 0; index < positions.count; index += 1) {
-        direction.fromBufferAttribute(positions, index).normalize();
-        normals.setXYZ(index, direction.x, direction.y, direction.z);
-        positions.setXYZ(index, direction.x * 0.75, direction.y * 0.75, direction.z * 0.75);
-      }
-    }
+      : createShapeGeometry(isCube ? 'cube' : 'sphere');
     const cats = Array.from({ length: 6 }, (_, face) => createCatTexture(face));
     // Preserve the six geometry groups, UV maps and every layered animal effect.
     const materials = cats.map(({ texture }, face) => new THREE.MeshStandardMaterial({
@@ -159,9 +152,9 @@ export default function App() {
     }
     const blueCap = createBlueCap();
     // Fit the smaller shapes, and keep the cowl's pointed ears exposed.
-    const capScale = (faceted || mathMode ? 0.8 : 1) * (isRedBatman ? 0.7 : 1);
+    const capScale = (faceted || isCube ? 0.8 : 1) * (isRedBatman ? 0.7 : 1);
     blueCap.object.scale.setScalar(capScale);
-    blueCap.object.position.y = (faceted || mathMode ? 0.5 : 0.49)
+    blueCap.object.position.y = (faceted || isCube ? 0.5 : 0.49)
       - 0.49 * capScale + (isRedBatman ? 0.2 : 0);
     cube.add(blueCap.object);
     cube.rotation.set(0.4, 0.5, 0);
@@ -495,7 +488,7 @@ export default function App() {
       eagleMaterials.forEach((plumage) => plumage.dispose());
       renderer.dispose();
     };
-  }, [initiallyButterfly, faceted, mathMode, gigachadMode, isRedBatman, palette, sceneDescription]);
+  }, [initiallyButterfly, faceted, isCube, mathMode, gigachadMode, isRedBatman, palette, sceneDescription]);
 
   // Celebration is a separate layer: switching it never rebuilds the scene,
   // changes its materials/accessories, or takes ownership of the background.
