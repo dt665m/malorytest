@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
+import { createBlueCap } from './blueCap';
 import { createOrigami } from './origami';
 import { addRedBatman } from './redBatman';
 import { addCornerApples } from './cornerApples';
@@ -43,7 +44,7 @@ export default function App() {
   const gigachadMode = parameters.get('theme') === 'gigachad';
   const mathMode = parameters.get('theme') === 'math';
   const shapeDescription = faceted ? '26-face beveled cubes' : mathMode ? 'cubes' : 'spheres';
-  const sceneDescription = `Two rotating, jumping ${colourDescription} jelly ${shapeDescription} with an apple at each of eight corner directions and Saturn-like rings that bounce, squash and wobble moving in a circle with six Rubik’s-style 3×3 panelled regions, each with a golden slit-eyed cat, laughing eagle and laughing turtle; the cats change every full turn; surrounded by colorful brick-built flowers above a framed floor mirror reflecting the scene, against a star-filled space sky${gigachadMode ? '; with monochrome Gigachad portraits layered on each region' : ''}${isRedBatman ? '; wearing red Batman cowls with pointed ears, white eyes, bat emblems and capes' : ''}; an Omani desert eagle lands on the first object and pecks at it; with a five-second green tint every thirty seconds`;
+  const sceneDescription = `Two rotating, jumping ${colourDescription} jelly ${shapeDescription} wearing blue baseball caps with an apple at each of eight corner directions and Saturn-like rings that bounce, squash and wobble moving in a circle with six Rubik’s-style 3×3 panelled regions, each with a golden slit-eyed cat, laughing eagle and laughing turtle; the cats change every full turn; surrounded by colorful brick-built flowers above a framed floor mirror reflecting the scene, against a star-filled space sky${gigachadMode ? '; with monochrome Gigachad portraits layered on each region' : ''}${isRedBatman ? '; wearing red Batman cowls with pointed ears, white eyes, bat emblems and capes' : ''}; an Omani desert eagle lands on the first object and pecks at it; with a five-second green tint every thirty seconds`;
 
   useEffect(() => {
     const canvas = canvasRef.current!;
@@ -155,6 +156,13 @@ export default function App() {
       costume.scale.setScalar(2 / 3);
       costume.position.z = 0.05;
     }
+    const blueCap = createBlueCap();
+    // Fit the smaller shapes, and keep the cowl's pointed ears exposed.
+    const capScale = (faceted || mathMode ? 0.8 : 1) * (isRedBatman ? 0.7 : 1);
+    blueCap.object.scale.setScalar(capScale);
+    blueCap.object.position.y = (faceted || mathMode ? 0.5 : 0.49)
+      - 0.49 * capScale + (isRedBatman ? 0.2 : 0);
+    cube.add(blueCap.object);
     cube.rotation.set(0.4, 0.5, 0);
     // Keep the rings attached to the cube so they share its motion.
     // Separate annuli leave visible gaps like Saturn's ring divisions.
@@ -276,7 +284,7 @@ export default function App() {
     });
     scene.add(eagle);
 
-    // Sample only the surface geometry, not rings, apples or other accessories.
+    // Sample the surface and cap, but not rings, apples or other accessories.
     // The eagle remains upright while its perch follows every ancestor transform.
     const perch = new THREE.Vector3();
     const surfacePoint = new THREE.Vector3();
@@ -295,6 +303,15 @@ export default function App() {
           if (surfacePoint.y > perch.y) perch.copy(surfacePoint);
         }
       }
+      // The cap is solid: land above it rather than inside it.
+      blueCap.object.traverse((part) => {
+        if (!(part instanceof THREE.Mesh)) return;
+        const vertices = part.geometry.getAttribute('position');
+        for (let index = 0; index < vertices.count; index += 1) {
+          surfacePoint.fromBufferAttribute(vertices, index).applyMatrix4(part.matrixWorld);
+          if (surfacePoint.y > perch.y) perch.copy(surfacePoint);
+        }
+      });
       const phase = elapsed % 14;
       const landing = still ? 1 : THREE.MathUtils.smoothstep(phase, 0, 3);
       const departing = still ? 0 : THREE.MathUtils.smoothstep(phase, 11, 14);
@@ -452,6 +469,7 @@ export default function App() {
       canvas.removeEventListener('click', onClick);
       canvas.removeEventListener('keydown', onKeyDown);
       // The cloned object's diagram shares these resources; dispose only once.
+      blueCap.dispose();
       disposeCostume?.();
       disposeCornerApples();
       math?.dispose();
