@@ -26,6 +26,7 @@ const cubePalettes = {
 };
 import { createMirror } from './mirror';
 import { createStarfield } from './starfield';
+import { createTimedCuboid, CUBOID_DELAY_MS, CUBOID_RADIUS } from './timedCuboid';
 
 export default function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -103,6 +104,7 @@ export default function App() {
       cube.add(math.group);
     }
     let butterflyMode = initiallyButterfly;
+    let cuboidMode = false;
     let unfoldStart = performance.now();
     let angle = 45;
     const describeMath = () => {
@@ -113,7 +115,8 @@ export default function App() {
         sceneDescription.replace('against a star-filled space sky', sky)
         + (math ? '. ' + math.update(angle) : '')
         + (butterflyMode ? '. The surfaces unfold into gently flapping origami butterflies.' : '')
-        + ' Press B to unfold the butterflies or S to restore the selected original shape.');
+        + (cuboidMode && !butterflyMode ? '. Both objects are rectangular cuboids labelled 67.' : '')
+        + ' After two minutes both become cuboids labelled 67. Press B for butterflies, S for the original shape, or R for the labelled cuboid.');
     };
     describeMath();
     changeBackground.current = (mode) => {
@@ -181,6 +184,10 @@ export default function App() {
     // Cloning also shares ring geometry/materials; dispose those only once.
     // Share the six layered materials so both objects receive every cat refresh.
     const secondCube = cube.clone();
+    const cuboid = createTimedCuboid();
+    const secondLabels = cuboid.labels.clone();
+    cube.add(cuboid.labels);
+    secondCube.add(secondLabels);
     const objectOffset = 2.1;
     // Deform each object independently without stretching their separation or orbit.
     const jellyRoots = [cube, secondCube].map((object, index) => {
@@ -197,9 +204,31 @@ export default function App() {
       object.add(butterfly.group);
       return butterfly;
     });
+    // Move, rather than scale, the apples so they stay on the wider corners
+    // without stretching their shared artwork. Restore exact original positions.
+    const applePositions = [cube, secondCube].flatMap((object) =>
+      object.getObjectByName('corner-apples')!.children.map((apple) => ({
+        apple, original: apple.position.clone(),
+      })),
+    );
+    cuboid.geometry.computeBoundingBox();
+    const cuboidCorner = cuboid.geometry.boundingBox!.max;
     const applyShape = () => {
-      geometry.setDrawRange(0, butterflyMode ? 0 : Infinity);
+      const activeGeometry = cuboidMode ? cuboid.geometry : geometry;
+      cube.geometry = secondCube.geometry = activeGeometry;
+      activeGeometry.setDrawRange(0, butterflyMode ? 0 : Infinity);
+      cuboid.labels.visible = secondLabels.visible = cuboidMode && !butterflyMode;
       butterflies.forEach(({ group }) => { group.visible = butterflyMode; });
+      applePositions.forEach(({ apple, original }) => {
+        apple.position.copy(original);
+        if (cuboidMode && !butterflyMode) {
+          apple.position.set(
+            Math.sign(original.x) * cuboidCorner.x,
+            Math.sign(original.y) * cuboidCorner.y,
+            Math.sign(original.z) * cuboidCorner.z,
+          );
+        }
+      });
     };
     applyShape();
     // Keep the orbit and jump independent of the geometry and local rotation.
@@ -290,7 +319,7 @@ export default function App() {
         butterflyBounds.getCenter(perch);
         perch.y = butterflyBounds.max.y;
       } else {
-        const surface = geometry.getAttribute('position');
+        const surface = cube.geometry.getAttribute('position');
         perch.set(0, -Infinity, 0);
         for (let index = 0; index < surface.count; index += 1) {
           surfacePoint.fromBufferAttribute(surface, index).applyMatrix4(cube.matrixWorld);
@@ -333,7 +362,7 @@ export default function App() {
       camera.aspect = Math.max(width, 1) / Math.max(height, 1);
       galaxy.material.uniforms.aspect.value = camera.aspect;
       // Fit both jumping ring systems (including jelly stretch), their orbit, and the stationary flower border in either orientation.
-      const orbitExtent = objectOffset + orbitRadius + jumpHeight + 0.45 + 2.0;
+      const orbitExtent = objectOffset + orbitRadius + jumpHeight + 0.45 + Math.max(2.0, CUBOID_RADIUS);
       const flowerBounds = new THREE.Box3().setFromObject(flowers.group);
       const flowerExtent = Math.max(
         Math.abs(flowerBounds.min.x), Math.abs(flowerBounds.max.x),
@@ -438,8 +467,9 @@ export default function App() {
     const selectMode = (event: KeyboardEvent) => {
       if (event.altKey || event.ctrlKey || event.metaKey || event.repeat) return;
       const key = event.key.toLowerCase();
-      if (key !== 'b' && key !== 's') return;
+      if (key !== 'b' && key !== 's' && key !== 'r') return;
       butterflyMode = key === 'b';
+      if (key !== 'b') cuboidMode = key === 'r';
       unfoldStart = performance.now();
       applyShape();
       butterflies.forEach((butterfly) => butterfly.update(motion.matches ? 1 : 0, 0, motion.matches));
@@ -451,8 +481,20 @@ export default function App() {
     canvas.addEventListener('keydown', selectMode);
     updateMotion();
     motion.addEventListener('change', updateMotion);
+    // A wall-clock deadline still fires when reduced motion stops animation.
+    // Keep original/origami modes available afterwards via S and B.
+    const cuboidTimer = window.setTimeout(() => {
+      cuboidMode = true;
+      butterflyMode = false;
+      applyShape();
+      describeMath();
+      poseEagle((performance.now() - start) / 1000, motion.matches);
+      renderer.render(scene, camera);
+    }, Math.max(0, CUBOID_DELAY_MS - (performance.now() - start)));
 
     return () => {
+      window.clearTimeout(cuboidTimer);
+      cuboid.dispose();
       window.clearTimeout(greenTimer);
       canvas.classList.remove('green-phase');
       renderer.setAnimationLoop(null);
@@ -494,7 +536,7 @@ export default function App() {
   // changes its materials/accessories, or takes ownership of the background.
   return (
     <main className="experience" data-theme={theme}>
-      <canvas ref={canvasRef} tabIndex={0} title="B: unfold butterflies · S: restore selected shape" role="img" aria-label={sceneDescription} />
+      <canvas ref={canvasRef} tabIndex={0} title="B: unfold butterflies · S: restore selected shape · R: labelled cuboid" role="img" aria-label={sceneDescription} />
       {theme === 'oman-national-day' && (
         <section className="national-day" aria-label="Oman National Day celebration">
           <div className="national-day__ribbons" aria-hidden="true" />
