@@ -11,6 +11,27 @@ keeps that palette beneath the red accessories. Omit the theme to retain the
 default Omani scene; `?theme=original&cubeColors=blue` selects the blue appearance
 without the costume. Math and Gigachad remain available via their existing themes.
 
+## Cat and rectangle modes
+
+Select `?shape=cat` to transform both textured cubes into
+cats with purple features, pointed ears, gold eyes, whiskers, paws and curled tails.
+Every twelve seconds they grow their cat features, perform three backflips
+with staggered landings, and return to cubes. The rings, animal textures,
+Rubik panels, orbit, jumping jelly motion, flowers and space background remain.
+
+Select a mode in the URL: `?shape=sphere`, `?shape=faceted`,
+`?shape=cube`, `?shape=butterfly` (flapping wings), or
+`?shape=rectangle` (stretches after two minutes).
+The existing `?shape=butterfly` uses layered origami wings; the rounded-wing
+variant is selectable with `?shape=animal-butterfly`. **B** temporarily switches
+any of these modes to origami; **S** restores its original transformation.
+Cat bodies retain the selected palette (`&cubeColors=purple` restores purple)
+and layered artwork. The cap follows the growing head, and the eagle perches
+above the cat and cap. Main's default remains the Omani-coloured sphere.
+Reduced-motion preferences display a static cat or butterfly, disable motion
+immediately when changed, and preserve the delayed rectangle transformation
+as a single static update.
+
 ## Math cube
 
 Select `?theme=math` for translucent rotating cubes containing a unit-circle diagram and a local,
@@ -33,7 +54,7 @@ Unmounting clears the timer and tint.
 
 Select `?shape=butterfly`, or focus the canvas and press **B**, to unfold six
 cube faces into paper wings and a faceted body on both objects. **B** replays
-the unfolding; **S** restores the selected sphere, faceted or math shape.
+the unfolding; **S** restores the selected base shape or transformation.
 The wings retain the selected palette, refreshable cats, animal/eye overlays,
 Rubik panels and optional Gigachad texture. Rings, apples, Batman accessories,
 math diagrams, orbit/jelly motion, flowers, mirror and background selection

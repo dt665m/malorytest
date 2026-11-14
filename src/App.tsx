@@ -5,6 +5,7 @@ import { createOrigami } from './origami';
 import { addRedBatman } from './redBatman';
 import { addCornerApples } from './cornerApples';
 import { addGigachadTheme } from './gigachadTheme';
+import { createAnimalForms } from './animalForms';
 import { createMathCube } from './mathCube';
 import { createCatTexture } from './catTexture';
 import { addCatEyes } from './catEyes';
@@ -45,8 +46,14 @@ export default function App() {
   const shape = readShapeMode(window.location.search, mathMode ? 'cube' : 'sphere');
   const initiallyButterfly = shape === 'butterfly';
   const faceted = shape === 'faceted';
-  const isCube = shape === 'cube' || (initiallyButterfly && mathMode);
-  const shapeDescription = faceted ? '26-face beveled cubes' : isCube ? 'cubes' : 'spheres';
+  const catMode = shape === 'cat';
+  const rectangleMode = shape === 'rectangle';
+  const animalButterflyMode = shape === 'animal-butterfly';
+  const isCube = shape === 'cube' || catMode || rectangleMode || animalButterflyMode || (initiallyButterfly && mathMode);
+  const shapeDescription = catMode ? 'cubes transforming into cats with ears, paws and curled tails, doing repeated backflips'
+    : rectangleMode ? 'cubes stretching into rectangles after two minutes'
+    : animalButterflyMode ? 'butterflies with rounded wings'
+    : faceted ? '26-face beveled cubes' : isCube ? 'cubes' : 'spheres';
   const sceneDescription = `Two rotating, jumping ${colourDescription} jelly ${shapeDescription} wearing blue baseball caps with an apple at each of eight corner directions and Saturn-like rings that bounce, squash and wobble moving in a circle with six Rubik’s-style 3×3 panelled regions, each with a golden slit-eyed cat, laughing eagle and laughing turtle; the cats change every full turn; surrounded by colorful brick-built flowers above a framed floor mirror reflecting the scene, against a star-filled space sky${gigachadMode ? '; with monochrome Gigachad portraits layered on each region' : ''}${isRedBatman ? '; wearing red Batman cowls with pointed ears, white eyes, bat emblems and capes' : ''}; an Omani desert eagle lands on the first object and pecks at it; with a five-second green tint every thirty seconds`;
   const [theme, setTheme] = useState<'oman-national-day' | 'original'>('oman-national-day');
 
@@ -157,6 +164,10 @@ export default function App() {
     blueCap.object.position.y = (faceted || isCube ? 0.5 : 0.49)
       - 0.49 * capScale + (isRedBatman ? 0.2 : 0);
     cube.add(blueCap.object);
+    const forms = createAnimalForms();
+    cube.add(forms.cat, forms.butterfly);
+    forms.cat.visible = catMode;
+    forms.butterfly.visible = animalButterflyMode;
     cube.rotation.set(0.4, 0.5, 0);
     // Keep the rings attached to the cube so they share its motion.
     // Separate annuli leave visible gaps like Saturn's ring divisions.
@@ -181,9 +192,18 @@ export default function App() {
     // Cloning also shares ring geometry/materials; dispose those only once.
     // Share the six layered materials so both objects receive every cat refresh.
     const secondCube = cube.clone();
+    // Clones share geometry/materials but have independent transform state.
+    const catForms = [forms.cat, secondCube.children[cube.children.indexOf(forms.cat)]];
+    const butterflyForms = [forms.butterfly, secondCube.children[cube.children.indexOf(forms.butterfly)]];
+    const objects = [cube, secondCube];
     const objectOffset = 2.1;
     // Deform each object independently without stretching their separation or orbit.
-    const jellyRoots = [cube, secondCube].map((object, index) => {
+    const flipRoots = objects.map((object) => {
+      const pivot = new THREE.Group();
+      pivot.add(object);
+      return pivot;
+    });
+    const jellyRoots = flipRoots.map((object, index) => {
       const root = new THREE.Group();
       root.position.x = index === 0 ? -objectOffset : objectOffset;
       root.add(object);
@@ -298,14 +318,16 @@ export default function App() {
         }
       }
       // The cap is solid: land above it rather than inside it.
-      blueCap.object.traverse((part) => {
+      const perchAccessories: THREE.Object3D[] = [blueCap.object];
+      if (forms.cat.visible) perchAccessories.push(forms.cat);
+      perchAccessories.forEach((accessory) => accessory.traverse((part) => {
         if (!(part instanceof THREE.Mesh)) return;
         const vertices = part.geometry.getAttribute('position');
         for (let index = 0; index < vertices.count; index += 1) {
           surfacePoint.fromBufferAttribute(vertices, index).applyMatrix4(part.matrixWorld);
           if (surfacePoint.y > perch.y) perch.copy(surfacePoint);
         }
-      });
+      }));
       const phase = elapsed % 14;
       const landing = still ? 1 : THREE.MathUtils.smoothstep(phase, 0, 3);
       const departing = still ? 0 : THREE.MathUtils.smoothstep(phase, 11, 14);
@@ -378,6 +400,48 @@ export default function App() {
       greenTimer = window.setTimeout(updateGreenPhase, nextBoundary - phase);
     };
     updateGreenPhase();
+    const updateForms = (elapsed: number, reduced: boolean) => {
+      // A twelve-second loop: cube, grow the cat silhouette, three backflips,
+      // then shrink back. Reduced motion presents the complete cat statically.
+      const cycle = elapsed % 12;
+      const grow = THREE.MathUtils.smoothstep(cycle, 1, 3);
+      const shrink = 1 - THREE.MathUtils.smoothstep(cycle, 10, 12);
+      const reveal = reduced ? 1 : grow * shrink;
+      catForms.forEach((form) => {
+        form.visible = catMode && !butterflyMode && reveal > 0;
+        form.scale.setScalar(Math.max(0.001, reveal));
+      });
+      objects.forEach((object) => {
+        // The cap follows the growing cat head without covering its eyes/ears.
+        const cap = object.getObjectByName('blue-baseball-cap')!;
+        const catReveal = catMode && !butterflyMode ? reveal : 0;
+        cap.scale.setScalar(THREE.MathUtils.lerp(capScale, 0.45, catReveal));
+        cap.position.y = THREE.MathUtils.lerp(
+          (faceted || isCube ? 0.5 : 0.49) - 0.49 * capScale + (isRedBatman ? 0.2 : 0),
+          1.02 - 0.49 * 0.45, catReveal,
+        );
+        object.scale.set(1, 1, 1);
+        if (rectangleMode && !butterflyMode && elapsed >= 120) {
+          const stretch = reduced ? 1 : THREE.MathUtils.smoothstep(elapsed, 120, 123);
+          object.scale.set(1 + stretch * 0.8, 1 - stretch * 0.4, 1);
+        }
+      });
+      flipRoots.forEach((pivot, index) => {
+        const progress = THREE.MathUtils.clamp((cycle - 3 - index * 0.2) / 6, 0, 1);
+        // Each of three turns eases into a landing; never accumulate frame deltas.
+        const turns = progress * 3;
+        const fraction = turns % 1;
+        const eased = fraction * fraction * (3 - 2 * fraction);
+        pivot.rotation.x = catMode && !butterflyMode && !reduced ? -(Math.floor(turns) + eased) * Math.PI * 2 : 0;
+        pivot.position.y = catMode && !butterflyMode && !reduced ? Math.sin(fraction * Math.PI) * 0.55 : 0;
+      });
+      butterflyForms.forEach((form) => {
+        form.visible = animalButterflyMode && !butterflyMode;
+        form.children.forEach((wing, index) => {
+          wing.rotation.y = reduced ? 0 : Math.sin(elapsed * 6) * 0.55 * (index === 0 ? -1 : 1);
+        });
+      });
+    };
     const animate = (time: number) => {
       const elapsed = (time - start) / 1000;
       if (butterflyMode) {
@@ -392,12 +456,13 @@ export default function App() {
         Math.sin(orbitAngle) * orbitRadius,
         0,
       );
-      cube.rotation.x = 0.4 + elapsed * 0.3;
-      cube.rotation.y = 0.5 + elapsed * 0.5;
+      cube.rotation.x = (catMode || animalButterflyMode) && !butterflyMode ? 0.15 : 0.4 + elapsed * 0.3;
+      cube.rotation.y = (catMode || animalButterflyMode) && !butterflyMode ? Math.sin(elapsed * 0.5) * 0.3 : 0.5 + elapsed * 0.5;
       secondCube.rotation.copy(cube.rotation);
-      // One turn is a full revolution around the primary (Y) rotation axis.
-      // Derive it from the angle so skipped frames cannot miss a refresh.
-      const turn = Math.floor((cube.rotation.y - 0.5) / (Math.PI * 2));
+      updateForms(elapsed, false);
+      // Keep the original full-turn texture cadence, including in animal modes.
+      // Derive it from elapsed time so skipped frames cannot miss a refresh.
+      const turn = Math.floor(elapsed * 0.5 / (Math.PI * 2));
       if (turn !== catTurn) {
         catTurn = turn;
         cats.forEach((cat) => cat.refresh(turn));
@@ -425,6 +490,11 @@ export default function App() {
       renderer.setAnimationLoop(motion.matches ? null : animate);
       if (motion.matches) {
         butterflies.forEach((butterfly) => butterfly.update(1, 0, true));
+        updateForms((performance.now() - start) / 1000, true);
+        if ((catMode || animalButterflyMode) && !butterflyMode) {
+          objects.forEach((object) => object.rotation.set(0.15, 0, 0));
+        }
+        orbit.position.set(orbitRadius, 0, 0);
         jumpRoot.position.y = 0;
         jellyRoots.forEach((root) => {
           root.position.y = 0;
@@ -442,6 +512,7 @@ export default function App() {
       butterflyMode = key === 'b';
       unfoldStart = performance.now();
       applyShape();
+      updateForms((performance.now() - start) / 1000, motion.matches);
       butterflies.forEach((butterfly) => butterfly.update(motion.matches ? 1 : 0, 0, motion.matches));
       describeMath();
       // Do not advance the orbit/jelly animation while reduced motion is active.
@@ -450,12 +521,22 @@ export default function App() {
     };
     canvas.addEventListener('keydown', selectMode);
     updateMotion();
+    // Preserve the delayed rectangle change even when animation is disabled.
+    const rectangleTimer = rectangleMode ? window.setTimeout(() => {
+      if (motion.matches) {
+        updateForms(120, true);
+        poseEagle(0, true);
+        renderer.render(scene, camera);
+      }
+    }, 120_000) : undefined;
     motion.addEventListener('change', updateMotion);
 
     return () => {
       window.clearTimeout(greenTimer);
       canvas.classList.remove('green-phase');
       renderer.setAnimationLoop(null);
+      window.clearTimeout(rectangleTimer);
+      forms.dispose();
       window.removeEventListener('resize', resize);
       motion.removeEventListener('change', updateMotion);
       canvas.removeEventListener('keydown', selectMode);
@@ -488,7 +569,7 @@ export default function App() {
       eagleMaterials.forEach((plumage) => plumage.dispose());
       renderer.dispose();
     };
-  }, [initiallyButterfly, faceted, isCube, mathMode, gigachadMode, isRedBatman, palette, sceneDescription]);
+  }, [initiallyButterfly, catMode, rectangleMode, animalButterflyMode, faceted, isCube, mathMode, gigachadMode, isRedBatman, palette, sceneDescription]);
 
   // Celebration is a separate layer: switching it never rebuilds the scene,
   // changes its materials/accessories, or takes ownership of the background.
