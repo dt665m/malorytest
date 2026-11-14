@@ -33,6 +33,8 @@ export default function App() {
     () => window.matchMedia('(prefers-reduced-motion: reduce)').matches,
   );
   const setRotationPausedRef = useRef<(paused: boolean) => void>(() => {});
+  const [isWireframe, setIsWireframe] = useState(false);
+  const setWireframeRef = useRef<(wireframe: boolean) => void>(() => {});
 
   useEffect(() => {
     const canvas = canvasRef.current!;
@@ -51,6 +53,11 @@ export default function App() {
     const light = new THREE.DirectionalLight(0xffffff, 3);
     light.position.set(3, 5, 4);
     scene.add(light);
+
+    setWireframeRef.current = (wireframe) => {
+      material.wireframe = wireframe;
+      renderer.render(scene, camera);
+    };
 
     const resize = () => {
       const { clientWidth: width, clientHeight: height } = canvas;
@@ -102,6 +109,7 @@ export default function App() {
     return () => {
       renderer.setAnimationLoop(null);
       setRotationPausedRef.current = () => {};
+      setWireframeRef.current = () => {};
       window.removeEventListener('resize', resize);
       canvas.removeEventListener('click', changeColor);
       motion.removeEventListener('change', updateMotion);
@@ -114,6 +122,10 @@ export default function App() {
   useEffect(() => {
     setRotationPausedRef.current(isPaused);
   }, [isPaused]);
+
+  useEffect(() => {
+    setWireframeRef.current(isWireframe);
+  }, [isWireframe]);
 
   return (
     <div className="page" data-theme={isLightBackground ? 'light' : 'dark'}>
@@ -154,6 +166,14 @@ export default function App() {
           onClick={() => setIsLightBackground((light) => !light)}
         >
           Light background
+        </button>
+        <button
+          className="rotation-control"
+          type="button"
+          aria-pressed={isWireframe}
+          onClick={() => setIsWireframe((wireframe) => !wireframe)}
+        >
+          Wireframe: {isWireframe ? 'On' : 'Off'}
         </button>
       </div>
     </div>
