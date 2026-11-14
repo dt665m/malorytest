@@ -10,16 +10,27 @@ import { createLegoFlowers } from './legoFlowers';
 import { createFacetedCubeGeometry } from './createFacetedCubeGeometry';
 import { createSpaceBackground } from './spaceBackground';
 
+const cubePalettes = {
+  oman: ['#db161b', '#db161b', '#ffffff', '#ffffff', '#008000', '#008000'],
+  blue: Array<string>(6).fill('#246bff'),
+  purple: Array<string>(6).fill('#9333ea'),
+};
+
 export default function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   // Preserve the spherical mode; opt into the additional faces with ?shape=faceted.
   const parameters = new URLSearchParams(window.location.search);
+  const requestedPalette = parameters.get('cubeColors');
+  const palette = requestedPalette === 'blue' || requestedPalette === 'purple'
+    ? requestedPalette
+    : 'oman';
+  const colourDescription = palette === 'oman' ? 'Omani flag-coloured (red, white and green)' : palette;
   const faceted = parameters.get('shape') === 'faceted';
   // Keep all existing themes intact by opting into the translucent math view.
   const gigachadMode = parameters.get('theme') === 'gigachad';
   const mathMode = parameters.get('theme') === 'math';
   const shapeDescription = faceted ? '26-face beveled cubes' : mathMode ? 'cubes' : 'spheres';
-  const sceneDescription = `Two rotating, jumping purple jelly ${shapeDescription} with Saturn-like rings that bounce, squash and wobble moving in a circle with six Rubik’s-style 3×3 panelled regions, each with a golden slit-eyed cat, laughing eagle and laughing turtle; the cats change every full turn; surrounded by colorful brick-built flowers against a star-filled space sky${gigachadMode ? '; with monochrome Gigachad portraits layered on each region' : ''}`;
+  const sceneDescription = `Two rotating, jumping ${colourDescription} jelly ${shapeDescription} with Saturn-like rings that bounce, squash and wobble moving in a circle with six Rubik’s-style 3×3 panelled regions, each with a golden slit-eyed cat, laughing eagle and laughing turtle; the cats change every full turn; surrounded by colorful brick-built flowers against a star-filled space sky${gigachadMode ? '; with monochrome Gigachad portraits layered on each region' : ''}`;
 
   useEffect(() => {
     const canvas = canvasRef.current!;
@@ -47,7 +58,11 @@ export default function App() {
       }
     }
     const cats = Array.from({ length: 6 }, (_, face) => createCatTexture(face));
-    const materials = cats.map(({ texture }) => new THREE.MeshStandardMaterial({ color: '#9333ea', map: texture }));
+    // Preserve the six geometry groups, UV maps and every layered animal effect.
+    const materials = cats.map(({ texture }, face) => new THREE.MeshStandardMaterial({
+      color: cubePalettes[palette][face],
+      map: texture,
+    }));
     materials.forEach(applyRubiksPanels);
     const disposeAnimals = addLaughingAnimals(materials);
     const disposeCatEyes = addCatEyes(materials);
@@ -233,7 +248,7 @@ export default function App() {
       spaceBackground.dispose();
       renderer.dispose();
     };
-  }, [faceted, mathMode, gigachadMode, sceneDescription]);
+  }, [faceted, mathMode, gigachadMode, palette, sceneDescription]);
 
   return <canvas ref={canvasRef} tabIndex={mathMode ? 0 : undefined} role="img" aria-label={sceneDescription} />;
 }

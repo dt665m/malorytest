@@ -9,11 +9,13 @@ sine, cosine, and tangent values update together; tangent is undefined at 90°
 and 270°. Reduced-motion preferences stop rotation without disabling input.
 No API keys, network service, or extra dependencies are required. The default
 spherical scene is unchanged; `?theme=math&shape=faceted` combines the math
-view with the existing beveled geometry. Both objects keep their purple layered
+view with the existing beveled geometry. Both objects keep their selected palette and layered
 animal textures, rings and motion; the math view makes the outer materials
 translucent to reveal the diagram.
 
 Requires Node.js 22.12+ and pnpm 12.4.1.
+
+Both objects default to Omani flag colours (red, white and green), with opposite material regions sharing a colour. Add `?cubeColors=purple` for the existing purple palette, `?cubeColors=blue` for the original blue palette, or `?cubeColors=oman` for the Omani palette. Unknown values use Omani colours. These options combine with the existing shapes and themes, for example `?shape=faceted&theme=math&cubeColors=purple`. Only the base material colours change: cat textures, animal overlays, Rubik’s panels, rings, flowers, background and motion are preserved. Lighting and texture layers modulate the displayed colours.
 
 ```sh
 pnpm install --frozen-lockfile
