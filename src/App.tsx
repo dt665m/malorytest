@@ -27,6 +27,7 @@ function Clock() {
 export default function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isLightBackground, setIsLightBackground] = useState(false);
+  const [fullTurns, setFullTurns] = useState(0);
   const [speed, setSpeed] = useState(1);
   const speedRef = useRef(1);
   const [isPaused, setIsPaused] = useState(
@@ -90,11 +91,21 @@ export default function App() {
 
     const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
     let previousTime: number | null = null;
+    // Count only animated Y-axis travel, excluding the initial display angle.
+    let totalRotationY = 0;
+    let completedTurns = 0;
     const animate = (time: number) => {
       const delta = previousTime === null ? 0 : Math.min((time - previousTime) / 1000, 0.1);
       previousTime = time;
       cube.rotation.x += delta * 0.3 * speedRef.current;
-      cube.rotation.y += delta * 0.5 * speedRef.current;
+      const rotationY = delta * 0.5 * speedRef.current;
+      cube.rotation.y += rotationY;
+      totalRotationY += rotationY;
+      const nextFullTurns = Math.floor(totalRotationY / (2 * Math.PI));
+      if (nextFullTurns !== completedTurns) {
+        completedTurns = nextFullTurns;
+        setFullTurns(nextFullTurns);
+      }
       renderer.render(scene, camera);
     };
     setRotationPausedRef.current = (paused) => {
@@ -132,6 +143,10 @@ export default function App() {
       <canvas ref={canvasRef} role="img" aria-label="A rotating cube. Click the cube to change its color." />
       <Clock />
       <div className="speed-control">
+        <div className="speed-heading" title="Complete 360° rotations around the vertical (Y) axis since page load.">
+          <span id="full-turns-label">Full turns (Y axis)</span>
+          <output aria-labelledby="full-turns-label">{fullTurns}</output>
+        </div>
         <div className="speed-heading">
           <label htmlFor="cube-speed">Spin speed</label>
           <output htmlFor="cube-speed">{speed === 0 ? 'Paused' : `${speed.toFixed(1)}×`}</output>
