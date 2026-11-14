@@ -24,6 +24,11 @@ view with the existing beveled geometry. Both objects keep their selected palett
 animal textures, rings and motion; the math view makes the outer materials
 translucent to reveal the diagram.
 
+The canvas turns green for five seconds at 30, 60, 90… seconds after mounting,
+then returns to its selected theme. This output tint preserves the underlying
+material colors and textures and runs even when reduced motion pauses rotation.
+Unmounting clears the timer and tint.
+
 Requires Node.js 22.12+ and pnpm 12.4.1.
 
 Both objects default to Omani flag colours (red, white and green), with opposite material regions sharing a colour. Add `?cubeColors=purple` for the existing purple palette, `?cubeColors=blue` for the original blue palette, or `?cubeColors=oman` for the Omani palette. Unknown values use Omani colours. These options combine with the existing shapes and themes, for example `?shape=faceted&theme=math&cubeColors=purple`. Only the base material colours change: cat textures, animal overlays, Rubik’s panels, rings, flowers, background and motion are preserved. Lighting and texture layers modulate the displayed colours.
