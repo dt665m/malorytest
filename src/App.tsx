@@ -37,15 +37,20 @@ export default function App() {
     // Share the six layered materials so both objects receive every cat refresh.
     const secondCube = cube.clone();
     const objectOffset = 1.1;
-    cube.position.x = -objectOffset;
-    secondCube.position.x = objectOffset;
+    // Deform each object independently without stretching their separation or orbit.
+    const jellyRoots = [cube, secondCube].map((object, index) => {
+      const root = new THREE.Group();
+      root.position.x = index === 0 ? -objectOffset : objectOffset;
+      root.add(object);
+      return root;
+    });
     // Keep the orbit and jump independent of the geometry and local rotation.
     const orbitRadius = 0.65;
     const jumpHeight = 0.65;
     const orbit = new THREE.Group();
     const jumpRoot = new THREE.Group();
     orbit.position.x = orbitRadius;
-    jumpRoot.add(cube, secondCube);
+    jumpRoot.add(...jellyRoots);
     orbit.add(jumpRoot);
     scene.add(orbit, new THREE.HemisphereLight(0xffffff, 0x334155, 2));
     const light = new THREE.DirectionalLight(0xffffff, 3);
@@ -59,7 +64,7 @@ export default function App() {
       const { clientWidth: width, clientHeight: height } = canvas;
       camera.aspect = width / height;
       // Fit both jumping objects, their orbit, and the stationary flower border in either orientation.
-      const orbitExtent = objectOffset + orbitRadius + jumpHeight + Math.sqrt(3) / 2;
+      const orbitExtent = objectOffset + orbitRadius + jumpHeight + 0.45 + 1.1;
       const flowerBounds = new THREE.Box3().setFromObject(flowers.group);
       const flowerExtent = Math.max(
         Math.abs(flowerBounds.min.x), Math.abs(flowerBounds.max.x),
@@ -104,12 +109,29 @@ export default function App() {
       const jumpProgress = Math.min(elapsed % 1.6, 1);
       jumpRoot.position.y = 4 * jumpHeight * jumpProgress * (1 - jumpProgress);
 
+      const phase = (elapsed % 1.8) / 1.8;
+      const lift = Math.sin(Math.PI * phase) ** 2;
+      // Periodic curves keep the jelly bounce seamless and frame-rate independent.
+      const impact = Math.exp(-lift * 18);
+      const wobble = Math.sin(phase * Math.PI * 8) * Math.exp(-lift * 5);
+      const height = 1 + 0.14 * lift - 0.28 * impact + 0.06 * wobble;
+      const width = 1 / Math.sqrt(height);
+      jellyRoots.forEach((root) => {
+        root.scale.set(width, height, width);
+        root.position.y = -0.45 + lift * 0.9;
+        root.rotation.z = wobble * 0.06;
+      });
       renderer.render(scene, camera);
     };
     const updateMotion = () => {
       renderer.setAnimationLoop(motion.matches ? null : animate);
       if (motion.matches) {
         jumpRoot.position.y = 0;
+        jellyRoots.forEach((root) => {
+          root.position.y = 0;
+          root.scale.set(1, 1, 1);
+          root.rotation.set(0, 0, 0);
+        });
         renderer.render(scene, camera);
       }
     };
@@ -129,5 +151,5 @@ export default function App() {
     };
   }, []);
 
-  return <canvas ref={canvasRef} role="img" aria-label="Two rotating, jumping purple spheres moving in a circle with six Rubik’s-style 3×3 panelled regions, each with a cat, laughing eagle and laughing turtle; the cats change every full turn; surrounded by colorful brick-built flowers" />;
+  return <canvas ref={canvasRef} role="img" aria-label="Two rotating, jumping purple jelly spheres that bounce, squash and wobble moving in a circle with six Rubik’s-style 3×3 panelled regions, each with a cat, laughing eagle and laughing turtle; the cats change every full turn; surrounded by colorful brick-built flowers" />;
 }
