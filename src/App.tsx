@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
+import { addRedBatman } from './redBatman';
 import { addCornerApples } from './cornerApples';
 import { addGigachadTheme } from './gigachadTheme';
 import { createMathCube } from './mathCube';
@@ -18,6 +19,7 @@ const cubePalettes = {
   oman: ['#db161b', '#db161b', '#ffffff', '#ffffff', '#008000', '#008000'],
   blue: Array<string>(6).fill('#246bff'),
   purple: Array<string>(6).fill('#9333ea'),
+  red: Array<string>(6).fill('#c41430'),
 };
 import { createMirror } from './mirror';
 import { createStarfield } from './starfield';
@@ -28,17 +30,18 @@ export default function App() {
   const changeBackground = useRef<(mode: BackgroundMode) => void>(() => {});
   // Preserve the spherical mode; opt into the additional faces with ?shape=faceted.
   const parameters = new URLSearchParams(window.location.search);
+  const isRedBatman = parameters.get('theme') === 'red-batman';
   const requestedPalette = parameters.get('cubeColors');
   const palette = requestedPalette === 'blue' || requestedPalette === 'purple'
     ? requestedPalette
-    : 'oman';
+    : requestedPalette === 'oman' ? 'oman' : isRedBatman ? 'red' : 'oman';
   const colourDescription = palette === 'oman' ? 'Omani flag-coloured (red, white and green)' : palette;
   const faceted = parameters.get('shape') === 'faceted';
   // Keep all existing themes intact by opting into the translucent math view.
   const gigachadMode = parameters.get('theme') === 'gigachad';
   const mathMode = parameters.get('theme') === 'math';
   const shapeDescription = faceted ? '26-face beveled cubes' : mathMode ? 'cubes' : 'spheres';
-  const sceneDescription = `Two rotating, jumping ${colourDescription} jelly ${shapeDescription} with an apple at each of eight corner directions and Saturn-like rings that bounce, squash and wobble moving in a circle with six Rubik’s-style 3×3 panelled regions, each with a golden slit-eyed cat, laughing eagle and laughing turtle; the cats change every full turn; surrounded by colorful brick-built flowers above a framed floor mirror reflecting the scene, against a star-filled space sky${gigachadMode ? '; with monochrome Gigachad portraits layered on each region' : ''}`;
+  const sceneDescription = `Two rotating, jumping ${colourDescription} jelly ${shapeDescription} with an apple at each of eight corner directions and Saturn-like rings that bounce, squash and wobble moving in a circle with six Rubik’s-style 3×3 panelled regions, each with a golden slit-eyed cat, laughing eagle and laughing turtle; the cats change every full turn; surrounded by colorful brick-built flowers above a framed floor mirror reflecting the scene, against a star-filled space sky${gigachadMode ? '; with monochrome Gigachad portraits layered on each region' : ''}${isRedBatman ? '; wearing red Batman cowls with pointed ears, white eyes, bat emblems and capes' : ''}`;
 
   useEffect(() => {
     const canvas = canvasRef.current!;
@@ -137,6 +140,15 @@ export default function App() {
     }
 
     const disposeCornerApples = addCornerApples(cube);
+    // Add accessories without replacing any of the six layered materials or UVs.
+    // The later clone shares costume resources, just like the rings and apples.
+    const disposeCostume = isRedBatman ? addRedBatman(cube) : undefined;
+    if (isRedBatman && faceted) {
+      // Fit the smaller beveled cube; keep the eye/emblem planes above its face.
+      const costume = cube.getObjectByName('red-batman-costume')!;
+      costume.scale.setScalar(2 / 3);
+      costume.position.z = 0.05;
+    }
     cube.rotation.set(0.4, 0.5, 0);
     // Keep the rings attached to the cube so they share its motion.
     // Separate annuli leave visible gaps like Saturn's ring divisions.
@@ -279,6 +291,7 @@ export default function App() {
       canvas.removeEventListener('click', onClick);
       canvas.removeEventListener('keydown', onKeyDown);
       // The cloned object's diagram shares these resources; dispose only once.
+      disposeCostume?.();
       disposeCornerApples();
       math?.dispose();
       disposeGigachadTheme?.();
@@ -300,7 +313,7 @@ export default function App() {
       changeBackground.current = () => {};
       renderer.dispose();
     };
-  }, [faceted, mathMode, gigachadMode, palette, sceneDescription]);
+  }, [faceted, mathMode, gigachadMode, isRedBatman, palette, sceneDescription]);
 
   return <>
     <canvas ref={canvasRef} tabIndex={mathMode ? 0 : undefined} role="img" aria-label={sceneDescription} />

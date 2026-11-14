@@ -1,5 +1,16 @@
 # Live demo starter
 
+## Red Batman
+
+Select `?theme=red-batman` to give both rotating objects red Batman cowls,
+pointed ears, white eyes, bat emblems and capes. The costume follows their
+rotation, orbit, jumping and jelly motion. It preserves the six layered animal
+materials, Rubik panels, rings and apples, and adapts to `&shape=faceted`.
+Batman defaults to red; an explicit `&cubeColors=oman`, `purple` or `blue`
+keeps that palette beneath the red accessories. Omit the theme to retain the
+default Omani scene; `?theme=original&cubeColors=blue` selects the blue appearance
+without the costume. Math and Gigachad remain available via their existing themes.
+
 ## Math cube
 
 Select `?theme=math` for translucent rotating cubes containing a unit-circle diagram and a local,
