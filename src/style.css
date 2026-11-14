@@ -8,6 +8,12 @@ body,
   background: #030610;
 }
 
+/* A reversible output tint preserves material colors and animal textures.
+   No transition: reduced-motion users get the same timing without animation. */
+canvas.green-phase {
+  filter: sepia(1) saturate(5) hue-rotate(75deg);
+}
+
 canvas {
   display: block;
   width: 100%;

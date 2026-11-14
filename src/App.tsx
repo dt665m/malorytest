@@ -41,7 +41,7 @@ export default function App() {
   const gigachadMode = parameters.get('theme') === 'gigachad';
   const mathMode = parameters.get('theme') === 'math';
   const shapeDescription = faceted ? '26-face beveled cubes' : mathMode ? 'cubes' : 'spheres';
-  const sceneDescription = `Two rotating, jumping ${colourDescription} jelly ${shapeDescription} with an apple at each of eight corner directions and Saturn-like rings that bounce, squash and wobble moving in a circle with six Rubik’s-style 3×3 panelled regions, each with a golden slit-eyed cat, laughing eagle and laughing turtle; the cats change every full turn; surrounded by colorful brick-built flowers above a framed floor mirror reflecting the scene, against a star-filled space sky${gigachadMode ? '; with monochrome Gigachad portraits layered on each region' : ''}${isRedBatman ? '; wearing red Batman cowls with pointed ears, white eyes, bat emblems and capes' : ''}`;
+  const sceneDescription = `Two rotating, jumping ${colourDescription} jelly ${shapeDescription} with an apple at each of eight corner directions and Saturn-like rings that bounce, squash and wobble moving in a circle with six Rubik’s-style 3×3 panelled regions, each with a golden slit-eyed cat, laughing eagle and laughing turtle; the cats change every full turn; surrounded by colorful brick-built flowers above a framed floor mirror reflecting the scene, against a star-filled space sky${gigachadMode ? '; with monochrome Gigachad portraits layered on each region' : ''}${isRedBatman ? '; wearing red Batman cowls with pointed ears, white eyes, bat emblems and capes' : ''}; with a five-second green tint every thirty seconds`;
 
   useEffect(() => {
     const canvas = canvasRef.current!;
@@ -233,6 +233,20 @@ export default function App() {
     const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
     const start = performance.now();
     let catTurn = 0;
+    // Tint the rendered canvas, not its materials: selected themes and texture
+    // maps remain intact and reappear unchanged after each five-second phase.
+    const greenPeriod = 30_000;
+    const greenDuration = 5_000;
+    let greenTimer: ReturnType<typeof window.setTimeout>;
+    const updateGreenPhase = () => {
+      const elapsed = performance.now() - start;
+      const phase = elapsed % greenPeriod;
+      const isGreen = elapsed >= greenPeriod && phase < greenDuration;
+      canvas.classList.toggle('green-phase', isGreen);
+      const nextBoundary = isGreen ? greenDuration : greenPeriod;
+      greenTimer = window.setTimeout(updateGreenPhase, nextBoundary - phase);
+    };
+    updateGreenPhase();
     const animate = (time: number) => {
       const elapsed = (time - start) / 1000;
       const orbitAngle = elapsed * 0.5;
@@ -285,6 +299,8 @@ export default function App() {
     motion.addEventListener('change', updateMotion);
 
     return () => {
+      window.clearTimeout(greenTimer);
+      canvas.classList.remove('green-phase');
       renderer.setAnimationLoop(null);
       window.removeEventListener('resize', resize);
       motion.removeEventListener('change', updateMotion);
