@@ -29,7 +29,12 @@ export default function App() {
     const materials = cats.map(({ texture }) => new THREE.MeshStandardMaterial({ color: '#9333ea', map: texture }));
     const cube = new THREE.Mesh(geometry, materials);
     cube.rotation.set(0.4, 0.5, 0);
-    scene.add(cube, new THREE.HemisphereLight(0xffffff, 0x334155, 2));
+    // Keep the orbit independent of the cube's geometry, materials and local rotation.
+    const orbitRadius = 0.65;
+    const orbit = new THREE.Group();
+    orbit.position.x = orbitRadius;
+    orbit.add(cube);
+    scene.add(orbit, new THREE.HemisphereLight(0xffffff, 0x334155, 2));
     const light = new THREE.DirectionalLight(0xffffff, 3);
     light.position.set(3, 5, 4);
     scene.add(light);
@@ -37,6 +42,13 @@ export default function App() {
     const resize = () => {
       const { clientWidth: width, clientHeight: height } = canvas;
       camera.aspect = width / height;
+      // Fit the whole orbit, including the cube's bounding sphere, in either orientation.
+      const orbitExtent = orbitRadius + Math.sqrt(3) / 2;
+      const halfFov = THREE.MathUtils.degToRad(camera.fov / 2);
+      camera.position.z = Math.max(
+        5,
+        orbitExtent * 1.15 / (Math.sin(halfFov) * Math.min(camera.aspect, 1)),
+      );
       camera.updateProjectionMatrix();
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
       renderer.setSize(width, height, false);
@@ -50,6 +62,12 @@ export default function App() {
     let catTurn = 0;
     const animate = (time: number) => {
       const elapsed = (time - start) / 1000;
+      const orbitAngle = elapsed * 0.5;
+      orbit.position.set(
+        Math.cos(orbitAngle) * orbitRadius,
+        Math.sin(orbitAngle) * orbitRadius,
+        0,
+      );
       cube.rotation.x = 0.4 + elapsed * 0.3;
       cube.rotation.y = 0.5 + elapsed * 0.5;
       // One turn is a full revolution around the primary (Y) rotation axis.
@@ -78,5 +96,5 @@ export default function App() {
     };
   }, []);
 
-  return <canvas ref={canvasRef} role="img" aria-label="A rotating purple sphere with six illustrated cat regions; the cats change every full turn" />;
+  return <canvas ref={canvasRef} role="img" aria-label="A rotating purple sphere moving in a circle with six illustrated cat regions; the cats change every full turn" />;
 }
