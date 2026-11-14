@@ -73,14 +73,60 @@ export default function App() {
 
     const raycaster = new THREE.Raycaster();
     const pointer = new THREE.Vector2();
-    const changeColor = (event: MouseEvent) => {
+    const hitsCube = (event: MouseEvent) => {
       const bounds = canvas.getBoundingClientRect();
       pointer.set(
         ((event.clientX - bounds.left) / bounds.width) * 2 - 1,
         -((event.clientY - bounds.top) / bounds.height) * 2 + 1,
       );
       raycaster.setFromCamera(pointer, camera);
-      if (raycaster.intersectObject(cube).length === 0) return;
+      return raycaster.intersectObject(cube).length > 0;
+    };
+    let drag: { pointerId: number; startX: number; startY: number; x: number; y: number } | null = null;
+    let didDrag = false;
+    const horizontalAxis = new THREE.Vector3(0, 1, 0);
+    const verticalAxis = new THREE.Vector3(1, 0, 0);
+    const startDrag = (event: PointerEvent) => {
+      if (drag || !event.isPrimary || event.button !== 0) return;
+      didDrag = false;
+      if (!hitsCube(event)) return;
+      drag = {
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        x: event.clientX,
+        y: event.clientY,
+      };
+      canvas.setPointerCapture(event.pointerId);
+      canvas.style.cursor = 'grabbing';
+    };
+    const moveDrag = (event: PointerEvent) => {
+      if (!drag) {
+        canvas.style.cursor = hitsCube(event) ? 'grab' : '';
+        return;
+      }
+      if (event.pointerId !== drag.pointerId) return;
+      // Leave small click movements alone, so clicking still changes color.
+      if (!didDrag && Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) < 4) return;
+      didDrag = true;
+      cube.rotateOnWorldAxis(horizontalAxis, (event.clientX - drag.x) * 0.01);
+      cube.rotateOnWorldAxis(verticalAxis, (event.clientY - drag.y) * 0.01);
+      drag.x = event.clientX;
+      drag.y = event.clientY;
+      renderer.render(scene, camera);
+    };
+    const endDrag = (event: PointerEvent) => {
+      if (event.pointerId !== drag?.pointerId) return;
+      drag = null;
+      canvas.style.cursor = '';
+      if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
+    };
+    const changeColor = (event: MouseEvent) => {
+      if (didDrag) {
+        didDrag = false;
+        return;
+      }
+      if (!hitsCube(event)) return;
 
       // Choose any RGB color except the current one, so every hit changes it.
       const offset = 1 + Math.floor(Math.random() * 0xffffff);
@@ -88,6 +134,11 @@ export default function App() {
       renderer.render(scene, camera);
     };
     canvas.addEventListener('click', changeColor);
+    canvas.addEventListener('pointerdown', startDrag);
+    canvas.addEventListener('pointermove', moveDrag);
+    canvas.addEventListener('pointerup', endDrag);
+    canvas.addEventListener('pointercancel', endDrag);
+    canvas.addEventListener('lostpointercapture', endDrag);
 
     const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
     let previousTime: number | null = null;
@@ -97,14 +148,16 @@ export default function App() {
     const animate = (time: number) => {
       const delta = previousTime === null ? 0 : Math.min((time - previousTime) / 1000, 0.1);
       previousTime = time;
-      cube.rotation.x += delta * 0.3 * speedRef.current;
-      const rotationY = delta * 0.5 * speedRef.current;
-      cube.rotation.y += rotationY;
-      totalRotationY += rotationY;
-      const nextFullTurns = Math.floor(totalRotationY / (2 * Math.PI));
-      if (nextFullTurns !== completedTurns) {
-        completedTurns = nextFullTurns;
-        setFullTurns(nextFullTurns);
+      if (!drag) {
+        cube.rotation.x += delta * 0.3 * speedRef.current;
+        const rotationY = delta * 0.5 * speedRef.current;
+        cube.rotation.y += rotationY;
+        totalRotationY += rotationY;
+        const nextFullTurns = Math.floor(totalRotationY / (2 * Math.PI));
+        if (nextFullTurns !== completedTurns) {
+          completedTurns = nextFullTurns;
+          setFullTurns(nextFullTurns);
+        }
       }
       renderer.render(scene, camera);
     };
@@ -123,6 +176,13 @@ export default function App() {
       setWireframeRef.current = () => {};
       window.removeEventListener('resize', resize);
       canvas.removeEventListener('click', changeColor);
+      canvas.removeEventListener('pointerdown', startDrag);
+      canvas.removeEventListener('pointermove', moveDrag);
+      canvas.removeEventListener('pointerup', endDrag);
+      canvas.removeEventListener('pointercancel', endDrag);
+      canvas.removeEventListener('lostpointercapture', endDrag);
+      if (drag && canvas.hasPointerCapture(drag.pointerId)) canvas.releasePointerCapture(drag.pointerId);
+      canvas.style.cursor = '';
       motion.removeEventListener('change', updateMotion);
       geometry.dispose();
       material.dispose();
@@ -140,7 +200,7 @@ export default function App() {
 
   return (
     <div className="page" data-theme={isLightBackground ? 'light' : 'dark'}>
-      <canvas ref={canvasRef} role="img" aria-label="A rotating cube. Click the cube to change its color." />
+      <canvas ref={canvasRef} role="img" aria-label="A rotating cube. Drag the cube to rotate it by hand. Click the cube to change its color." />
       <Clock />
       <div className="speed-control">
         <div className="speed-heading" title="Complete 360° rotations around the vertical (Y) axis since page load.">
