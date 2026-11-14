@@ -4,9 +4,12 @@ import { createCatTexture } from './catTexture';
 import { addLaughingAnimals } from './laughingAnimals';
 import { applyRubiksPanels } from './rubiksPanels';
 import { createLegoFlowers } from './legoFlowers';
+import { createFacetedCubeGeometry } from './createFacetedCubeGeometry';
 
 export default function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  // Preserve the spherical mode; opt into the additional faces with ?shape=faceted.
+  const faceted = new URLSearchParams(window.location.search).get('shape') === 'faceted';
 
   useEffect(() => {
     const canvas = canvasRef.current!;
@@ -19,20 +22,25 @@ export default function App() {
 
     // Round the cube into a sphere while retaining all six material groups and
     // their UVs, so each surface can still carry independently refreshed imagery.
-    const geometry = new THREE.BoxGeometry(1, 1, 1, 32, 32, 32);
-    const positions = geometry.getAttribute('position');
-    const normals = geometry.getAttribute('normal');
-    const direction = new THREE.Vector3();
-    for (let index = 0; index < positions.count; index += 1) {
-      direction.fromBufferAttribute(positions, index).normalize();
-      normals.setXYZ(index, direction.x, direction.y, direction.z);
-      positions.setXYZ(index, direction.x * 0.75, direction.y * 0.75, direction.z * 0.75);
+    const geometry = faceted
+      ? createFacetedCubeGeometry()
+      : new THREE.BoxGeometry(1, 1, 1, 32, 32, 32);
+    if (!faceted) {
+      const positions = geometry.getAttribute('position');
+      const normals = geometry.getAttribute('normal');
+      const direction = new THREE.Vector3();
+      for (let index = 0; index < positions.count; index += 1) {
+        direction.fromBufferAttribute(positions, index).normalize();
+        normals.setXYZ(index, direction.x, direction.y, direction.z);
+        positions.setXYZ(index, direction.x * 0.75, direction.y * 0.75, direction.z * 0.75);
+      }
     }
     const cats = Array.from({ length: 6 }, (_, face) => createCatTexture(face));
     const materials = cats.map(({ texture }) => new THREE.MeshStandardMaterial({ color: '#9333ea', map: texture }));
     materials.forEach(applyRubiksPanels);
     const disposeAnimals = addLaughingAnimals(materials);
     const cube = new THREE.Mesh(geometry, materials);
+
     cube.rotation.set(0.4, 0.5, 0);
     // Share the six layered materials so both objects receive every cat refresh.
     const secondCube = cube.clone();
@@ -149,7 +157,8 @@ export default function App() {
       cats.forEach(({ texture }) => texture.dispose());
       renderer.dispose();
     };
-  }, []);
+  }, [faceted]);
 
-  return <canvas ref={canvasRef} role="img" aria-label="Two rotating, jumping purple jelly spheres that bounce, squash and wobble moving in a circle with six Rubik’s-style 3×3 panelled regions, each with a cat, laughing eagle and laughing turtle; the cats change every full turn; surrounded by colorful brick-built flowers" />;
+  const shapeDescription = faceted ? '26-face beveled cubes' : 'spheres';
+  return <canvas ref={canvasRef} role="img" aria-label={`Two rotating, jumping purple jelly ${shapeDescription} that bounce, squash and wobble moving in a circle with six Rubik’s-style 3×3 panelled regions, each with a cat, laughing eagle and laughing turtle; the cats change every full turn; surrounded by colorful brick-built flowers`} />;
 }
