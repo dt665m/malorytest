@@ -27,3 +27,46 @@ canvas {
   font-variant-numeric: tabular-nums;
   pointer-events: none;
 }
+
+.speed-control {
+  position: fixed;
+  bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+  left: 50%;
+  transform: translateX(-50%);
+  box-sizing: border-box;
+  width: min(22rem, calc(100% - 2rem));
+  padding: 1rem;
+  border: 1px solid #334155;
+  border-radius: 0.75rem;
+  background: #111318;
+  color: #f1f5f9;
+  font: 0.875rem/1.5 system-ui, sans-serif;
+}
+
+.speed-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.speed-heading output {
+  font-variant-numeric: tabular-nums;
+}
+
+.speed-control input {
+  display: block;
+  width: 100%;
+  min-height: 2rem;
+  margin: 0.25rem 0;
+  accent-color: #246bff;
+  cursor: pointer;
+}
+
+.speed-control input:focus-visible {
+  outline: 2px solid #f1f5f9;
+  outline-offset: 2px;
+}
+
+.speed-control small {
+  color: #cbd5e1;
+}

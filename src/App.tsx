@@ -26,6 +26,8 @@ function Clock() {
 
 export default function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [speed, setSpeed] = useState(1);
+  const speedRef = useRef(1);
 
   useEffect(() => {
     const canvas = canvasRef.current!;
@@ -75,14 +77,16 @@ export default function App() {
     canvas.addEventListener('click', changeColor);
 
     const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
-    const start = performance.now();
+    let previousTime: number | null = null;
     const animate = (time: number) => {
-      const elapsed = (time - start) / 1000;
-      cube.rotation.x = 0.4 + elapsed * 0.3;
-      cube.rotation.y = 0.5 + elapsed * 0.5;
+      const delta = previousTime === null ? 0 : Math.min((time - previousTime) / 1000, 0.1);
+      previousTime = time;
+      cube.rotation.x += delta * 0.3 * speedRef.current;
+      cube.rotation.y += delta * 0.5 * speedRef.current;
       renderer.render(scene, camera);
     };
     const updateMotion = () => {
+      previousTime = null;
       renderer.setAnimationLoop(motion.matches ? null : animate);
     };
     updateMotion();
@@ -103,6 +107,28 @@ export default function App() {
     <>
       <canvas ref={canvasRef} role="img" aria-label="A rotating cube. Click the cube to change its color." />
       <Clock />
+      <div className="speed-control">
+        <div className="speed-heading">
+          <label htmlFor="cube-speed">Spin speed</label>
+          <output htmlFor="cube-speed">{speed === 0 ? 'Paused' : `${speed.toFixed(1)}×`}</output>
+        </div>
+        <input
+          id="cube-speed"
+          type="range"
+          min="0"
+          max="3"
+          step="0.1"
+          value={speed}
+          aria-valuetext={speed === 0 ? 'Paused' : `${speed.toFixed(1)} times normal speed`}
+          aria-describedby="motion-note"
+          onChange={(event) => {
+            const nextSpeed = event.currentTarget.valueAsNumber;
+            speedRef.current = nextSpeed;
+            setSpeed(nextSpeed);
+          }}
+        />
+        <small id="motion-note">Reduced-motion preferences pause rotation.</small>
+      </div>
     </>
   );
 }
