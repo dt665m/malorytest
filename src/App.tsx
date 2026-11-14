@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { createBlueCap } from './blueCap';
 import { createOrigami } from './origami';
@@ -45,6 +45,7 @@ export default function App() {
   const mathMode = parameters.get('theme') === 'math';
   const shapeDescription = faceted ? '26-face beveled cubes' : mathMode ? 'cubes' : 'spheres';
   const sceneDescription = `Two rotating, jumping ${colourDescription} jelly ${shapeDescription} wearing blue baseball caps with an apple at each of eight corner directions and Saturn-like rings that bounce, squash and wobble moving in a circle with six Rubik’s-style 3×3 panelled regions, each with a golden slit-eyed cat, laughing eagle and laughing turtle; the cats change every full turn; surrounded by colorful brick-built flowers above a framed floor mirror reflecting the scene, against a star-filled space sky${gigachadMode ? '; with monochrome Gigachad portraits layered on each region' : ''}${isRedBatman ? '; wearing red Batman cowls with pointed ears, white eyes, bat emblems and capes' : ''}; an Omani desert eagle lands on the first object and pecks at it; with a five-second green tint every thirty seconds`;
+  const [theme, setTheme] = useState<'oman-national-day' | 'original'>('oman-national-day');
 
   useEffect(() => {
     const canvas = canvasRef.current!;
@@ -496,8 +497,24 @@ export default function App() {
     };
   }, [initiallyButterfly, faceted, mathMode, gigachadMode, isRedBatman, palette, sceneDescription]);
 
-  return <>
-    <canvas ref={canvasRef} tabIndex={0} title="B: unfold butterflies · S: restore selected shape" role="img" aria-label={sceneDescription} />
+  // Celebration is a separate layer: switching it never rebuilds the scene,
+  // changes its materials/accessories, or takes ownership of the background.
+  return (
+    <main className="experience" data-theme={theme}>
+      <canvas ref={canvasRef} tabIndex={0} title="B: unfold butterflies · S: restore selected shape" role="img" aria-label={sceneDescription} />
+      {theme === 'oman-national-day' && (
+        <section className="national-day" aria-label="Oman National Day celebration">
+          <div className="national-day__ribbons" aria-hidden="true" />
+          <header className="national-day__greeting">
+            <p className="national-day__eyebrow">Celebrating Oman</p>
+            <h1>Oman National Day</h1>
+            <p className="national-day__arabic" lang="ar" dir="rtl">العيد الوطني العُماني</p>
+            <p className="national-day__message">Together in celebration</p>
+          </header>
+          <div className="national-day__trim" aria-hidden="true" />
+        </section>
+      )}
+      <div className="scene-controls">
     <label className="background-selector">
       Background
       <select defaultValue={backgroundMode.current} onChange={(event) => {
@@ -511,5 +528,17 @@ export default function App() {
         <option value="original">Original dark</option>
       </select>
     </label>
-  </>;
+      <label className="theme-picker">
+        Celebration
+        <select
+          value={theme}
+          onChange={(event) => setTheme(event.target.value === 'oman-national-day' ? 'oman-national-day' : 'original')}
+        >
+          <option value="oman-national-day">Oman National Day</option>
+          <option value="original">None (original)</option>
+        </select>
+      </label>
+      </div>
+    </main>
+  );
 }
