@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
+import { createMathCube } from './mathCube';
 import { createCatTexture } from './catTexture';
 import { addCatEyes } from './catEyes';
 import { addLaughingAnimals } from './laughingAnimals';
@@ -11,7 +12,12 @@ import { createSpaceBackground } from './spaceBackground';
 export default function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   // Preserve the spherical mode; opt into the additional faces with ?shape=faceted.
-  const faceted = new URLSearchParams(window.location.search).get('shape') === 'faceted';
+  const parameters = new URLSearchParams(window.location.search);
+  const faceted = parameters.get('shape') === 'faceted';
+  // Keep all existing themes intact by opting into the translucent math view.
+  const mathMode = parameters.get('theme') === 'math';
+  const shapeDescription = faceted ? '26-face beveled cubes' : mathMode ? 'cubes' : 'spheres';
+  const sceneDescription = `Two rotating, jumping purple jelly ${shapeDescription} with Saturn-like rings that bounce, squash and wobble moving in a circle with six Rubik’s-style 3×3 panelled regions, each with a golden slit-eyed cat, laughing eagle and laughing turtle; the cats change every full turn; surrounded by colorful brick-built flowers against a star-filled space sky`;
 
   useEffect(() => {
     const canvas = canvasRef.current!;
@@ -28,7 +34,7 @@ export default function App() {
     const geometry = faceted
       ? createFacetedCubeGeometry()
       : new THREE.BoxGeometry(1, 1, 1, 32, 32, 32);
-    if (!faceted) {
+    if (!faceted && !mathMode) {
       const positions = geometry.getAttribute('position');
       const normals = geometry.getAttribute('normal');
       const direction = new THREE.Vector3();
@@ -44,6 +50,37 @@ export default function App() {
     const disposeAnimals = addLaughingAnimals(materials);
     const disposeCatEyes = addCatEyes(materials);
     const cube = new THREE.Mesh(geometry, materials);
+    // Retain the six materials, their maps, and all layered shader effects.
+    const math = mathMode ? createMathCube() : null;
+    if (math) {
+      materials.forEach((material) => {
+        material.transparent = true;
+        material.opacity = 0.18;
+        material.depthWrite = false;
+      });
+      cube.add(math.group);
+    }
+    let angle = 45;
+    const describeMath = () => {
+      if (math) canvas.setAttribute('aria-label', sceneDescription + '. ' + math.update(angle));
+    };
+    describeMath();
+    const changeAngle = (step: number) => {
+      angle = (angle + step + 360) % 360;
+      describeMath();
+      renderer.render(scene, camera);
+    };
+    const onClick = () => changeAngle(15);
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+        event.preventDefault();
+        changeAngle(event.key === 'ArrowLeft' ? -15 : 15);
+      }
+    };
+    if (math) {
+      canvas.addEventListener('click', onClick);
+      canvas.addEventListener('keydown', onKeyDown);
+    }
 
     cube.rotation.set(0.4, 0.5, 0);
     // Keep the rings attached to the cube so they share its motion.
@@ -175,6 +212,10 @@ export default function App() {
       renderer.setAnimationLoop(null);
       window.removeEventListener('resize', resize);
       motion.removeEventListener('change', updateMotion);
+      canvas.removeEventListener('click', onClick);
+      canvas.removeEventListener('keydown', onKeyDown);
+      // The cloned object's diagram shares these resources; dispose only once.
+      math?.dispose();
       disposeCatEyes();
       disposeAnimals();
       flowers.dispose();
@@ -188,8 +229,7 @@ export default function App() {
       spaceBackground.dispose();
       renderer.dispose();
     };
-  }, [faceted]);
+  }, [faceted, mathMode, sceneDescription]);
 
-  const shapeDescription = faceted ? '26-face beveled cubes' : 'spheres';
-  return <canvas ref={canvasRef} role="img" aria-label={`Two rotating, jumping purple jelly ${shapeDescription} with Saturn-like rings that bounce, squash and wobble moving in a circle with six Rubik’s-style 3×3 panelled regions, each with a golden slit-eyed cat, laughing eagle and laughing turtle; the cats change every full turn; surrounded by colorful brick-built flowers against a star-filled space sky`} />;
+  return <canvas ref={canvasRef} tabIndex={mathMode ? 0 : undefined} role="img" aria-label={sceneDescription} />;
 }
