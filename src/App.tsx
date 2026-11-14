@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
+import { addCornerApples } from './cornerApples';
 import { addGigachadTheme } from './gigachadTheme';
 import { createMathCube } from './mathCube';
 import { createCatTexture } from './catTexture';
@@ -35,7 +36,7 @@ export default function App() {
   const gigachadMode = parameters.get('theme') === 'gigachad';
   const mathMode = parameters.get('theme') === 'math';
   const shapeDescription = faceted ? '26-face beveled cubes' : mathMode ? 'cubes' : 'spheres';
-  const sceneDescription = `Two rotating, jumping ${colourDescription} jelly ${shapeDescription} with Saturn-like rings that bounce, squash and wobble moving in a circle with six Rubik’s-style 3×3 panelled regions, each with a golden slit-eyed cat, laughing eagle and laughing turtle; the cats change every full turn; surrounded by colorful brick-built flowers against a star-filled space sky${gigachadMode ? '; with monochrome Gigachad portraits layered on each region' : ''}`;
+  const sceneDescription = `Two rotating, jumping ${colourDescription} jelly ${shapeDescription} with an apple at each of eight corner directions and Saturn-like rings that bounce, squash and wobble moving in a circle with six Rubik’s-style 3×3 panelled regions, each with a golden slit-eyed cat, laughing eagle and laughing turtle; the cats change every full turn; surrounded by colorful brick-built flowers against a star-filled space sky${gigachadMode ? '; with monochrome Gigachad portraits layered on each region' : ''}`;
 
   useEffect(() => {
     const canvas = canvasRef.current!;
@@ -125,6 +126,7 @@ export default function App() {
       canvas.addEventListener('keydown', onKeyDown);
     }
 
+    const disposeCornerApples = addCornerApples(cube);
     cube.rotation.set(0.4, 0.5, 0);
     // Keep the rings attached to the cube so they share its motion.
     // Separate annuli leave visible gaps like Saturn's ring divisions.
@@ -259,6 +261,7 @@ export default function App() {
       canvas.removeEventListener('click', onClick);
       canvas.removeEventListener('keydown', onKeyDown);
       // The cloned object's diagram shares these resources; dispose only once.
+      disposeCornerApples();
       math?.dispose();
       disposeGigachadTheme?.();
       disposeCatEyes();
