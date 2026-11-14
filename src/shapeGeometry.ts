@@ -1,10 +1,11 @@
 import * as THREE from 'three';
 
-export type ShapeMode = 'sphere' | 'cube' | 'faceted' | 'butterfly';
+export type ShapeMode = 'sphere' | 'cube' | 'faceted' | 'butterfly' | 'cat' | 'rectangle' | 'animal-butterfly';
 
 export function readShapeMode(search: string, fallback: 'sphere' | 'cube' = 'sphere'): ShapeMode {
   const shape = new URLSearchParams(search).get('shape');
   return shape === 'sphere' || shape === 'cube' || shape === 'faceted' || shape === 'butterfly'
+    || shape === 'cat' || shape === 'rectangle' || shape === 'animal-butterfly'
     ? shape
     : fallback;
 }
