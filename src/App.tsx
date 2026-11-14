@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { createCatTexture } from './catTexture';
 import { addLaughingAnimals } from './laughingAnimals';
 import { applyRubiksPanels } from './rubiksPanels';
+import { createLegoFlowers } from './legoFlowers';
 
 export default function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -43,15 +44,24 @@ export default function App() {
     light.position.set(3, 5, 4);
     scene.add(light);
 
+    const flowers = createLegoFlowers();
+    scene.add(flowers.group);
+
     const resize = () => {
       const { clientWidth: width, clientHeight: height } = canvas;
       camera.aspect = width / height;
-      // Fit the whole orbit, including the cube's bounding sphere, in either orientation.
+      // Fit both the orbit and the stationary flower border in either orientation.
       const orbitExtent = orbitRadius + Math.sqrt(3) / 2;
+      const flowerBounds = new THREE.Box3().setFromObject(flowers.group);
+      const flowerExtent = Math.max(
+        Math.abs(flowerBounds.min.x), Math.abs(flowerBounds.max.x),
+        Math.abs(flowerBounds.min.y), Math.abs(flowerBounds.max.y),
+      );
+      const sceneExtent = Math.max(orbitExtent, flowerExtent);
       const halfFov = THREE.MathUtils.degToRad(camera.fov / 2);
       camera.position.z = Math.max(
         5,
-        orbitExtent * 1.15 / (Math.sin(halfFov) * Math.min(camera.aspect, 1)),
+        sceneExtent * 1.15 / (Math.sin(halfFov) * Math.min(camera.aspect, 1)),
       );
       camera.updateProjectionMatrix();
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -94,6 +104,7 @@ export default function App() {
       window.removeEventListener('resize', resize);
       motion.removeEventListener('change', updateMotion);
       disposeAnimals();
+      flowers.dispose();
       geometry.dispose();
       materials.forEach((material) => material.dispose());
       cats.forEach(({ texture }) => texture.dispose());
@@ -101,5 +112,5 @@ export default function App() {
     };
   }, []);
 
-  return <canvas ref={canvasRef} role="img" aria-label="A rotating purple sphere moving in a circle with six Rubik’s-style 3×3 panelled regions, each with a cat, laughing eagle and laughing turtle; the cats change every full turn" />;
+  return <canvas ref={canvasRef} role="img" aria-label="A rotating purple sphere moving in a circle with six Rubik’s-style 3×3 panelled regions, each with a cat, laughing eagle and laughing turtle; the cats change every full turn; surrounded by colorful brick-built flowers" />;
 }
