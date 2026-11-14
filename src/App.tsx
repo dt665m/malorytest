@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
+import { createCatTexture } from './catTexture';
 
 export default function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -24,8 +25,9 @@ export default function App() {
       normals.setXYZ(index, direction.x, direction.y, direction.z);
       positions.setXYZ(index, direction.x * 0.75, direction.y * 0.75, direction.z * 0.75);
     }
-    const material = new THREE.MeshStandardMaterial({ color: '#246bff' });
-    const cube = new THREE.Mesh(geometry, material);
+    const cats = Array.from({ length: 6 }, (_, face) => createCatTexture(face));
+    const materials = cats.map(({ texture }) => new THREE.MeshStandardMaterial({ map: texture }));
+    const cube = new THREE.Mesh(geometry, materials);
     cube.rotation.set(0.4, 0.5, 0);
     scene.add(cube, new THREE.HemisphereLight(0xffffff, 0x334155, 2));
     const light = new THREE.DirectionalLight(0xffffff, 3);
@@ -45,10 +47,18 @@ export default function App() {
 
     const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
     const start = performance.now();
+    let catTurn = 0;
     const animate = (time: number) => {
       const elapsed = (time - start) / 1000;
       cube.rotation.x = 0.4 + elapsed * 0.3;
       cube.rotation.y = 0.5 + elapsed * 0.5;
+      // One turn is a full revolution around the primary (Y) rotation axis.
+      // Derive it from the angle so skipped frames cannot miss a refresh.
+      const turn = Math.floor((cube.rotation.y - 0.5) / (Math.PI * 2));
+      if (turn !== catTurn) {
+        catTurn = turn;
+        cats.forEach((cat) => cat.refresh(turn));
+      }
       renderer.render(scene, camera);
     };
     const updateMotion = () => {
@@ -62,10 +72,11 @@ export default function App() {
       window.removeEventListener('resize', resize);
       motion.removeEventListener('change', updateMotion);
       geometry.dispose();
-      material.dispose();
+      materials.forEach((material) => material.dispose());
+      cats.forEach(({ texture }) => texture.dispose());
       renderer.dispose();
     };
   }, []);
 
-  return <canvas ref={canvasRef} role="img" aria-label="A rotating blue sphere" />;
+  return <canvas ref={canvasRef} role="img" aria-label="A rotating sphere with six illustrated cat regions; the cats change every full turn" />;
 }
