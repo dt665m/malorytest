@@ -20,6 +20,7 @@ const cubePalettes = {
   purple: Array<string>(6).fill('#9333ea'),
 };
 import { createMirror } from './mirror';
+import { createStarfield } from './starfield';
 
 export default function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -46,7 +47,11 @@ export default function App() {
     const spaceBackground = createSpaceBackground();
     const galaxy = createGalaxyBackground();
     scene.add(galaxy);
+    const starfield = createStarfield();
+    scene.add(starfield.stars);
     const applyBackground = () => {
+      // The galaxy already draws small stars and masks them at its event horizons.
+      starfield.stars.visible = backgroundMode.current !== 'galaxy';
       galaxy.visible = backgroundMode.current === 'galaxy';
       scene.background = backgroundMode.current === 'space'
         ? spaceBackground
@@ -203,6 +208,8 @@ export default function App() {
       camera.position.y = camera.position.z * 0.65;
       camera.lookAt(0, -1.8, 0);
       camera.updateProjectionMatrix();
+      // Keep the sky centered as the camera backs away to fit the full scene.
+      starfield.stars.position.copy(camera.position);
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
       renderer.setSize(width, height, false);
       mirror.resize(width, height, renderer.getPixelRatio());
@@ -283,6 +290,7 @@ export default function App() {
         ring.material.dispose();
       }
       mirror.dispose();
+      starfield.dispose();
       geometry.dispose();
       materials.forEach((material) => material.dispose());
       cats.forEach(({ texture }) => texture.dispose());
