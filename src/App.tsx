@@ -26,6 +26,7 @@ function Clock() {
 
 export default function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [isLightBackground, setIsLightBackground] = useState(false);
   const [speed, setSpeed] = useState(1);
   const speedRef = useRef(1);
   const [isPaused, setIsPaused] = useState(
@@ -35,9 +36,9 @@ export default function App() {
 
   useEffect(() => {
     const canvas = canvasRef.current!;
-    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+    // Keep the canvas transparent so the page theme also updates while paused.
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color('#111318');
 
     const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
     camera.position.z = 5;
@@ -115,7 +116,7 @@ export default function App() {
   }, [isPaused]);
 
   return (
-    <>
+    <div className="page" data-theme={isLightBackground ? 'light' : 'dark'}>
       <canvas ref={canvasRef} role="img" aria-label="A rotating cube. Click the cube to change its color." />
       <Clock />
       <div className="speed-control">
@@ -146,7 +147,15 @@ export default function App() {
         >
           {isPaused ? 'Resume rotation' : 'Pause rotation'}
         </button>
+        <button
+          className="rotation-control"
+          type="button"
+          aria-pressed={isLightBackground}
+          onClick={() => setIsLightBackground((light) => !light)}
+        >
+          Light background
+        </button>
       </div>
-    </>
+    </div>
   );
 }
