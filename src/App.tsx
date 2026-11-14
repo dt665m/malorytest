@@ -19,6 +19,7 @@ const cubePalettes = {
   blue: Array<string>(6).fill('#246bff'),
   purple: Array<string>(6).fill('#9333ea'),
 };
+import { createMirror } from './mirror';
 
 export default function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -36,7 +37,7 @@ export default function App() {
   const gigachadMode = parameters.get('theme') === 'gigachad';
   const mathMode = parameters.get('theme') === 'math';
   const shapeDescription = faceted ? '26-face beveled cubes' : mathMode ? 'cubes' : 'spheres';
-  const sceneDescription = `Two rotating, jumping ${colourDescription} jelly ${shapeDescription} with an apple at each of eight corner directions and Saturn-like rings that bounce, squash and wobble moving in a circle with six Rubik’s-style 3×3 panelled regions, each with a golden slit-eyed cat, laughing eagle and laughing turtle; the cats change every full turn; surrounded by colorful brick-built flowers against a star-filled space sky${gigachadMode ? '; with monochrome Gigachad portraits layered on each region' : ''}`;
+  const sceneDescription = `Two rotating, jumping ${colourDescription} jelly ${shapeDescription} with an apple at each of eight corner directions and Saturn-like rings that bounce, squash and wobble moving in a circle with six Rubik’s-style 3×3 panelled regions, each with a golden slit-eyed cat, laughing eagle and laughing turtle; the cats change every full turn; surrounded by colorful brick-built flowers above a framed floor mirror reflecting the scene, against a star-filled space sky${gigachadMode ? '; with monochrome Gigachad portraits layered on each region' : ''}`;
 
   useEffect(() => {
     const canvas = canvasRef.current!;
@@ -54,7 +55,11 @@ export default function App() {
     applyBackground();
 
     const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
-    camera.position.z = 5;
+    camera.position.set(0, 1.5, 5);
+    camera.lookAt(0, -0.35, 0);
+
+    const mirror = createMirror();
+    scene.add(mirror.group);
 
     // Round the cube into a sphere while retaining all six material groups and
     // their UVs, so each surface can still carry independently refreshed imagery.
@@ -186,15 +191,21 @@ export default function App() {
         Math.abs(flowerBounds.min.x), Math.abs(flowerBounds.max.x),
         Math.abs(flowerBounds.min.y), Math.abs(flowerBounds.max.y),
       );
-      const sceneExtent = Math.max(orbitExtent, flowerExtent);
+      // Include the wider mirror and leave space for the reflected objects.
+      const sceneExtent = Math.max(orbitExtent, flowerExtent, 7);
       const halfFov = THREE.MathUtils.degToRad(camera.fov / 2);
       camera.position.z = Math.max(
         5,
         sceneExtent * 1.15 / (Math.sin(halfFov) * Math.min(camera.aspect, 1)),
       );
+      // Keep a downward view at every viewport size so the floor reflection
+      // remains visible rather than flattening as the camera moves back.
+      camera.position.y = camera.position.z * 0.65;
+      camera.lookAt(0, -1.8, 0);
       camera.updateProjectionMatrix();
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
       renderer.setSize(width, height, false);
+      mirror.resize(width, height, renderer.getPixelRatio());
       renderer.render(scene, camera);
     };
     resize();
@@ -271,6 +282,7 @@ export default function App() {
         ring.geometry.dispose();
         ring.material.dispose();
       }
+      mirror.dispose();
       geometry.dispose();
       materials.forEach((material) => material.dispose());
       cats.forEach(({ texture }) => texture.dispose());
