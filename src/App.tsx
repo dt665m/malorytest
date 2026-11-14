@@ -34,11 +34,14 @@ export default function App() {
     const disposeAnimals = addLaughingAnimals(materials);
     const cube = new THREE.Mesh(geometry, materials);
     cube.rotation.set(0.4, 0.5, 0);
-    // Keep the orbit independent of the cube's geometry, materials and local rotation.
+    // Keep the orbit and jump independent of the geometry and local rotation.
     const orbitRadius = 0.65;
+    const jumpHeight = 0.65;
     const orbit = new THREE.Group();
+    const jumpRoot = new THREE.Group();
     orbit.position.x = orbitRadius;
-    orbit.add(cube);
+    jumpRoot.add(cube);
+    orbit.add(jumpRoot);
     scene.add(orbit, new THREE.HemisphereLight(0xffffff, 0x334155, 2));
     const light = new THREE.DirectionalLight(0xffffff, 3);
     light.position.set(3, 5, 4);
@@ -50,8 +53,8 @@ export default function App() {
     const resize = () => {
       const { clientWidth: width, clientHeight: height } = canvas;
       camera.aspect = width / height;
-      // Fit both the orbit and the stationary flower border in either orientation.
-      const orbitExtent = orbitRadius + Math.sqrt(3) / 2;
+      // Fit the jumping orbit and the stationary flower border in either orientation.
+      const orbitExtent = orbitRadius + jumpHeight + Math.sqrt(3) / 2;
       const flowerBounds = new THREE.Box3().setFromObject(flowers.group);
       const flowerExtent = Math.max(
         Math.abs(flowerBounds.min.x), Math.abs(flowerBounds.max.x),
@@ -91,10 +94,18 @@ export default function App() {
         catTurn = turn;
         cats.forEach((cat) => cat.refresh(turn));
       }
+      // One-second parabolic hop, followed by a short pause at the orbit.
+      const jumpProgress = Math.min(elapsed % 1.6, 1);
+      jumpRoot.position.y = 4 * jumpHeight * jumpProgress * (1 - jumpProgress);
+
       renderer.render(scene, camera);
     };
     const updateMotion = () => {
       renderer.setAnimationLoop(motion.matches ? null : animate);
+      if (motion.matches) {
+        jumpRoot.position.y = 0;
+        renderer.render(scene, camera);
+      }
     };
     updateMotion();
     motion.addEventListener('change', updateMotion);
@@ -112,5 +123,5 @@ export default function App() {
     };
   }, []);
 
-  return <canvas ref={canvasRef} role="img" aria-label="A rotating purple sphere moving in a circle with six Rubik’s-style 3×3 panelled regions, each with a cat, laughing eagle and laughing turtle; the cats change every full turn; surrounded by colorful brick-built flowers" />;
+  return <canvas ref={canvasRef} role="img" aria-label="A rotating, jumping purple sphere moving in a circle with six Rubik’s-style 3×3 panelled regions, each with a cat, laughing eagle and laughing turtle; the cats change every full turn; surrounded by colorful brick-built flowers" />;
 }
