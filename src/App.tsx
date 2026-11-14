@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
+import { createOrigami } from './origami';
 import { addRedBatman } from './redBatman';
 import { addCornerApples } from './cornerApples';
 import { addGigachadTheme } from './gigachadTheme';
@@ -36,6 +37,7 @@ export default function App() {
     ? requestedPalette
     : requestedPalette === 'oman' ? 'oman' : isRedBatman ? 'red' : 'oman';
   const colourDescription = palette === 'oman' ? 'Omani flag-coloured (red, white and green)' : palette;
+  const initiallyButterfly = parameters.get('shape') === 'butterfly';
   const faceted = parameters.get('shape') === 'faceted';
   // Keep all existing themes intact by opting into the translucent math view.
   const gigachadMode = parameters.get('theme') === 'gigachad';
@@ -105,6 +107,8 @@ export default function App() {
       });
       cube.add(math.group);
     }
+    let butterflyMode = initiallyButterfly;
+    let unfoldStart = performance.now();
     let angle = 45;
     const describeMath = () => {
       const sky = backgroundMode.current === 'galaxy'
@@ -112,7 +116,9 @@ export default function App() {
         : backgroundMode.current === 'space' ? 'against a star-filled space sky' : 'against a dark sky';
       canvas.setAttribute('aria-label',
         sceneDescription.replace('against a star-filled space sky', sky)
-        + (math ? '. ' + math.update(angle) : ''));
+        + (math ? '. ' + math.update(angle) : '')
+        + (butterflyMode ? '. The surfaces unfold into gently flapping origami butterflies.' : '')
+        + ' Press B to unfold the butterflies or S to restore the selected original shape.');
     };
     describeMath();
     changeBackground.current = (mode) => {
@@ -181,6 +187,19 @@ export default function App() {
       root.add(object);
       return root;
     });
+    // Both sheets and original shapes share the existing accessories and motion.
+    // Hide only surface triangles, not the child rings, apples or theme objects.
+    const butterflies = [cube, secondCube].map((object) => {
+      const butterfly = createOrigami(materials);
+      butterfly.group.scale.setScalar(.75);
+      object.add(butterfly.group);
+      return butterfly;
+    });
+    const applyShape = () => {
+      geometry.setDrawRange(0, butterflyMode ? 0 : Infinity);
+      butterflies.forEach(({ group }) => { group.visible = butterflyMode; });
+    };
+    applyShape();
     // Keep the orbit and jump independent of the geometry and local rotation.
     const orbitRadius = 0.65;
     const jumpHeight = 0.65;
@@ -199,7 +218,7 @@ export default function App() {
 
     const resize = () => {
       const { clientWidth: width, clientHeight: height } = canvas;
-      camera.aspect = width / height;
+      camera.aspect = Math.max(width, 1) / Math.max(height, 1);
       galaxy.material.uniforms.aspect.value = camera.aspect;
       // Fit both jumping ring systems (including jelly stretch), their orbit, and the stationary flower border in either orientation.
       const orbitExtent = objectOffset + orbitRadius + jumpHeight + 0.45 + 2.0;
@@ -249,6 +268,12 @@ export default function App() {
     updateGreenPhase();
     const animate = (time: number) => {
       const elapsed = (time - start) / 1000;
+      if (butterflyMode) {
+        butterflies.forEach((butterfly) => butterfly.update(
+          motion.matches ? 1 : Math.min(1, (time - unfoldStart) / 3200),
+          elapsed, motion.matches,
+        ));
+      }
       const orbitAngle = elapsed * 0.5;
       orbit.position.set(
         Math.cos(orbitAngle) * orbitRadius,
@@ -286,6 +311,7 @@ export default function App() {
     const updateMotion = () => {
       renderer.setAnimationLoop(motion.matches ? null : animate);
       if (motion.matches) {
+        butterflies.forEach((butterfly) => butterfly.update(1, 0, true));
         jumpRoot.position.y = 0;
         jellyRoots.forEach((root) => {
           root.position.y = 0;
@@ -295,6 +321,19 @@ export default function App() {
         renderer.render(scene, camera);
       }
     };
+    const selectMode = (event: KeyboardEvent) => {
+      if (event.altKey || event.ctrlKey || event.metaKey || event.repeat) return;
+      const key = event.key.toLowerCase();
+      if (key !== 'b' && key !== 's') return;
+      butterflyMode = key === 'b';
+      unfoldStart = performance.now();
+      applyShape();
+      butterflies.forEach((butterfly) => butterfly.update(motion.matches ? 1 : 0, 0, motion.matches));
+      describeMath();
+      // Do not advance the orbit/jelly animation while reduced motion is active.
+      renderer.render(scene, camera);
+    };
+    canvas.addEventListener('keydown', selectMode);
     updateMotion();
     motion.addEventListener('change', updateMotion);
 
@@ -304,6 +343,8 @@ export default function App() {
       renderer.setAnimationLoop(null);
       window.removeEventListener('resize', resize);
       motion.removeEventListener('change', updateMotion);
+      canvas.removeEventListener('keydown', selectMode);
+      butterflies.forEach((butterfly) => butterfly.dispose());
       canvas.removeEventListener('click', onClick);
       canvas.removeEventListener('keydown', onKeyDown);
       // The cloned object's diagram shares these resources; dispose only once.
@@ -329,10 +370,10 @@ export default function App() {
       changeBackground.current = () => {};
       renderer.dispose();
     };
-  }, [faceted, mathMode, gigachadMode, isRedBatman, palette, sceneDescription]);
+  }, [initiallyButterfly, faceted, mathMode, gigachadMode, isRedBatman, palette, sceneDescription]);
 
   return <>
-    <canvas ref={canvasRef} tabIndex={mathMode ? 0 : undefined} role="img" aria-label={sceneDescription} />
+    <canvas ref={canvasRef} tabIndex={0} title="B: unfold butterflies · S: restore selected shape" role="img" aria-label={sceneDescription} />
     <label className="background-selector">
       Background
       <select defaultValue={backgroundMode.current} onChange={(event) => {
