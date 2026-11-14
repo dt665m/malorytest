@@ -51,6 +51,26 @@ pnpm dev
 
 Vite prints the local URL. React Fast Refresh updates edits while the dev server runs.
 
+## Shape selection
+
+The default object is a sphere, not a cube: its subdivided cube vertices are
+projected onto a radius-0.75 sphere with radial normals. The six original
+material groups and face-local UV regions retain the cat images, Rubik’s panels
+and laughing animals; the orbit and flower border are unchanged.
+
+Open `/?shape=sphere` to explicitly select the sphere or `/?shape=cube` for
+the original cube silhouette. `?shape=faceted` and `?shape=butterfly` retain
+the beveled and origami modes. Missing or unrecognized values select the sphere,
+except in the math theme, which defaults to a cube. Explicit
+`?theme=math&shape=sphere` keeps the diagram inside a spherical surface.
+Shape selection takes effect on page load; there is no additional menu.
+All modes use the same textures and accessories; **B** unfolds butterflies
+and **S** restores the selected base shape.
+
+Alternative-shape integrations should preserve the explicit `shape=sphere`
+route and its six-region geometry in `src/shapeGeometry.ts`, rather than
+replacing the sphere factory or bypassing the shared artwork setup.
+
 ```sh
 pnpm typecheck
 pnpm build
