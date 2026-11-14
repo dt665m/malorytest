@@ -28,6 +28,10 @@ export default function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [speed, setSpeed] = useState(1);
   const speedRef = useRef(1);
+  const [isPaused, setIsPaused] = useState(
+    () => window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+  );
+  const setRotationPausedRef = useRef<(paused: boolean) => void>(() => {});
 
   useEffect(() => {
     const canvas = canvasRef.current!;
@@ -85,15 +89,18 @@ export default function App() {
       cube.rotation.y += delta * 0.5 * speedRef.current;
       renderer.render(scene, camera);
     };
-    const updateMotion = () => {
+    setRotationPausedRef.current = (paused) => {
       previousTime = null;
-      renderer.setAnimationLoop(motion.matches ? null : animate);
+      renderer.setAnimationLoop(paused ? null : animate);
     };
-    updateMotion();
+    const updateMotion = () => {
+      if (motion.matches) setIsPaused(true);
+    };
     motion.addEventListener('change', updateMotion);
 
     return () => {
       renderer.setAnimationLoop(null);
+      setRotationPausedRef.current = () => {};
       window.removeEventListener('resize', resize);
       canvas.removeEventListener('click', changeColor);
       motion.removeEventListener('change', updateMotion);
@@ -102,6 +109,10 @@ export default function App() {
       renderer.dispose();
     };
   }, []);
+
+  useEffect(() => {
+    setRotationPausedRef.current(isPaused);
+  }, [isPaused]);
 
   return (
     <>
@@ -128,6 +139,13 @@ export default function App() {
           }}
         />
         <small id="motion-note">Reduced-motion preferences pause rotation.</small>
+        <button
+          className="rotation-control"
+          type="button"
+          onClick={() => setIsPaused((paused) => !paused)}
+        >
+          {isPaused ? 'Resume rotation' : 'Pause rotation'}
+        </button>
       </div>
     </>
   );
