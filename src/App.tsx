@@ -43,7 +43,7 @@ export default function App() {
   const gigachadMode = parameters.get('theme') === 'gigachad';
   const mathMode = parameters.get('theme') === 'math';
   const shapeDescription = faceted ? '26-face beveled cubes' : mathMode ? 'cubes' : 'spheres';
-  const sceneDescription = `Two rotating, jumping ${colourDescription} jelly ${shapeDescription} with an apple at each of eight corner directions and Saturn-like rings that bounce, squash and wobble moving in a circle with six Rubik’s-style 3×3 panelled regions, each with a golden slit-eyed cat, laughing eagle and laughing turtle; the cats change every full turn; surrounded by colorful brick-built flowers above a framed floor mirror reflecting the scene, against a star-filled space sky${gigachadMode ? '; with monochrome Gigachad portraits layered on each region' : ''}${isRedBatman ? '; wearing red Batman cowls with pointed ears, white eyes, bat emblems and capes' : ''}; with a five-second green tint every thirty seconds`;
+  const sceneDescription = `Two rotating, jumping ${colourDescription} jelly ${shapeDescription} with an apple at each of eight corner directions and Saturn-like rings that bounce, squash and wobble moving in a circle with six Rubik’s-style 3×3 panelled regions, each with a golden slit-eyed cat, laughing eagle and laughing turtle; the cats change every full turn; surrounded by colorful brick-built flowers above a framed floor mirror reflecting the scene, against a star-filled space sky${gigachadMode ? '; with monochrome Gigachad portraits layered on each region' : ''}${isRedBatman ? '; wearing red Batman cowls with pointed ears, white eyes, bat emblems and capes' : ''}; an Omani desert eagle lands on the first object and pecks at it; with a five-second green tint every thirty seconds`;
 
   useEffect(() => {
     const canvas = canvasRef.current!;
@@ -215,6 +215,107 @@ export default function App() {
 
     const flowers = createLegoFlowers();
     scene.add(flowers.group);
+    // A stylized desert eagle: sandy brown plumage, dark flight feathers,
+    // a hooked golden bill and gripping talons. It stays independent of the
+    // rotating surface so future cube materials and scenery remain untouched.
+    const eagle = new THREE.Group();
+    const eagleGeometries: THREE.BufferGeometry[] = [];
+    const eagleMaterials = [
+      new THREE.MeshStandardMaterial({ color: '#805332', roughness: 0.9 }),
+      new THREE.MeshStandardMaterial({ color: '#382a23', roughness: 0.95 }),
+      new THREE.MeshStandardMaterial({ color: '#c3a477', roughness: 0.9 }),
+      new THREE.MeshStandardMaterial({ color: '#e7b746', roughness: 0.65 }),
+      new THREE.MeshStandardMaterial({ color: '#14100d', roughness: 0.4 }),
+    ];
+    const ellipsoid = (
+      parent: THREE.Object3D, color: number,
+      position: [number, number, number], scale: [number, number, number],
+    ) => {
+      const shape = new THREE.SphereGeometry(1, 12, 8);
+      eagleGeometries.push(shape);
+      const mesh = new THREE.Mesh(shape, eagleMaterials[color]);
+      mesh.position.set(...position);
+      mesh.scale.set(...scale);
+      parent.add(mesh);
+      return mesh;
+    };
+    const torso = new THREE.Group();
+    eagle.add(torso);
+    ellipsoid(torso, 0, [0, 0.27, 0], [0.19, 0.29, 0.19]);
+    ellipsoid(torso, 2, [0, 0.3, 0.12], [0.13, 0.21, 0.09]);
+    ellipsoid(torso, 1, [0, 0.09, -0.23], [0.14, 0.07, 0.29]);
+    const neck = new THREE.Group();
+    neck.position.set(0, 0.44, 0.08);
+    torso.add(neck);
+    ellipsoid(neck, 2, [0, 0.09, 0.03], [0.14, 0.16, 0.14]);
+    ellipsoid(neck, 3, [0, 0.055, 0.19], [0.065, 0.065, 0.12]);
+    ellipsoid(neck, 4, [0, 0.015, 0.27], [0.035, 0.065, 0.035]);
+    for (const side of [-1, 1]) {
+      ellipsoid(neck, 4, [side * 0.117, 0.12, 0.105], [0.025, 0.029, 0.025]);
+      // Brow gives the raptor its characteristic intent gaze.
+      ellipsoid(neck, 0, [side * 0.105, 0.155, 0.105], [0.055, 0.018, 0.045]);
+      ellipsoid(eagle, 3, [side * 0.105, 0.065, 0.06], [0.024, 0.09, 0.025]);
+      for (let toe = -1; toe <= 1; toe += 1) {
+        ellipsoid(eagle, 3, [side * 0.105 + toe * 0.025, 0, 0.12], [0.015, 0.018, 0.085]);
+        ellipsoid(eagle, 4, [side * 0.105 + toe * 0.025, -0.012, 0.19], [0.012, 0.026, 0.026]);
+      }
+    }
+    const wings = [-1, 1].map((side) => {
+      const wing = new THREE.Group();
+      wing.position.set(side * 0.13, 0.39, -0.025);
+      torso.add(wing);
+      ellipsoid(wing, 0, [side * 0.24, -0.02, 0], [0.32, 0.075, 0.16]);
+      for (let feather = 0; feather < 6; feather += 1) {
+        const flightFeather = ellipsoid(
+          wing, 1, [side * (0.39 + feather * 0.065), -0.035, -0.07 + feather * 0.038],
+          [0.26 - feather * 0.018, 0.035, 0.045],
+        );
+        flightFeather.rotation.y = side * (0.1 + feather * 0.12);
+      }
+      return wing;
+    });
+    scene.add(eagle);
+
+    // Sample only the surface geometry, not rings, apples or other accessories.
+    // The eagle remains upright while its perch follows every ancestor transform.
+    const perch = new THREE.Vector3();
+    const surfacePoint = new THREE.Vector3();
+    const butterflyBounds = new THREE.Box3();
+    const poseEagle = (elapsed: number, still = false) => {
+      cube.updateWorldMatrix(true, true);
+      if (butterflyMode) {
+        butterflyBounds.setFromObject(butterflies[0].group);
+        butterflyBounds.getCenter(perch);
+        perch.y = butterflyBounds.max.y;
+      } else {
+        const surface = geometry.getAttribute('position');
+        perch.set(0, -Infinity, 0);
+        for (let index = 0; index < surface.count; index += 1) {
+          surfacePoint.fromBufferAttribute(surface, index).applyMatrix4(cube.matrixWorld);
+          if (surfacePoint.y > perch.y) perch.copy(surfacePoint);
+        }
+      }
+      const phase = elapsed % 14;
+      const landing = still ? 1 : THREE.MathUtils.smoothstep(phase, 0, 3);
+      const departing = still ? 0 : THREE.MathUtils.smoothstep(phase, 11, 14);
+      const flight = 1 - landing + departing;
+      eagle.position.copy(perch).add(surfacePoint.set(
+        (1 - landing) * -2.6 + departing * 2.6, flight * 1.7, 0,
+      ));
+      eagle.rotation.y = -0.3;
+      const peck = !still && phase > 4 && phase < 10
+        ? Math.pow(Math.max(0, Math.sin((phase - 4) * Math.PI * 2)), 4)
+        : still ? 0.55 : 0;
+      torso.rotation.x = peck * 0.85;
+      neck.rotation.x = peck * 0.9;
+      wings.forEach((wing, index) => {
+        const side = index === 0 ? -1 : 1;
+        wing.rotation.z = side * (flight > 0.01
+          ? Math.sin(elapsed * 13) * 0.65
+          : -1.15);
+      });
+    };
+    poseEagle(0, true);
 
     const resize = () => {
       const { clientWidth: width, clientHeight: height } = canvas;
@@ -306,6 +407,7 @@ export default function App() {
         root.position.y = -0.45 + lift * 0.9;
         root.rotation.z = wobble * 0.06;
       });
+      poseEagle(elapsed);
       renderer.render(scene, camera);
     };
     const updateMotion = () => {
@@ -318,6 +420,7 @@ export default function App() {
           root.scale.set(1, 1, 1);
           root.rotation.set(0, 0, 0);
         });
+        poseEagle(0, true);
         renderer.render(scene, camera);
       }
     };
@@ -331,6 +434,7 @@ export default function App() {
       butterflies.forEach((butterfly) => butterfly.update(motion.matches ? 1 : 0, 0, motion.matches));
       describeMath();
       // Do not advance the orbit/jelly animation while reduced motion is active.
+      if (motion.matches) poseEagle(0, true);
       renderer.render(scene, camera);
     };
     canvas.addEventListener('keydown', selectMode);
@@ -368,6 +472,8 @@ export default function App() {
       galaxy.geometry.dispose();
       galaxy.material.dispose();
       changeBackground.current = () => {};
+      eagleGeometries.forEach((shape) => shape.dispose());
+      eagleMaterials.forEach((plumage) => plumage.dispose());
       renderer.dispose();
     };
   }, [initiallyButterfly, faceted, mathMode, gigachadMode, isRedBatman, palette, sceneDescription]);
