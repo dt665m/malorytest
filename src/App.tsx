@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
+import { addGigachadTheme } from './gigachadTheme';
 import { createMathCube } from './mathCube';
 import { createCatTexture } from './catTexture';
 import { addCatEyes } from './catEyes';
@@ -15,9 +16,10 @@ export default function App() {
   const parameters = new URLSearchParams(window.location.search);
   const faceted = parameters.get('shape') === 'faceted';
   // Keep all existing themes intact by opting into the translucent math view.
+  const gigachadMode = parameters.get('theme') === 'gigachad';
   const mathMode = parameters.get('theme') === 'math';
   const shapeDescription = faceted ? '26-face beveled cubes' : mathMode ? 'cubes' : 'spheres';
-  const sceneDescription = `Two rotating, jumping purple jelly ${shapeDescription} with Saturn-like rings that bounce, squash and wobble moving in a circle with six Rubik’s-style 3×3 panelled regions, each with a golden slit-eyed cat, laughing eagle and laughing turtle; the cats change every full turn; surrounded by colorful brick-built flowers against a star-filled space sky`;
+  const sceneDescription = `Two rotating, jumping purple jelly ${shapeDescription} with Saturn-like rings that bounce, squash and wobble moving in a circle with six Rubik’s-style 3×3 panelled regions, each with a golden slit-eyed cat, laughing eagle and laughing turtle; the cats change every full turn; surrounded by colorful brick-built flowers against a star-filled space sky${gigachadMode ? '; with monochrome Gigachad portraits layered on each region' : ''}`;
 
   useEffect(() => {
     const canvas = canvasRef.current!;
@@ -49,6 +51,7 @@ export default function App() {
     materials.forEach(applyRubiksPanels);
     const disposeAnimals = addLaughingAnimals(materials);
     const disposeCatEyes = addCatEyes(materials);
+    const disposeGigachadTheme = gigachadMode ? addGigachadTheme(materials) : null;
     const cube = new THREE.Mesh(geometry, materials);
     // Retain the six materials, their maps, and all layered shader effects.
     const math = mathMode ? createMathCube() : null;
@@ -216,6 +219,7 @@ export default function App() {
       canvas.removeEventListener('keydown', onKeyDown);
       // The cloned object's diagram shares these resources; dispose only once.
       math?.dispose();
+      disposeGigachadTheme?.();
       disposeCatEyes();
       disposeAnimals();
       flowers.dispose();
@@ -229,7 +233,7 @@ export default function App() {
       spaceBackground.dispose();
       renderer.dispose();
     };
-  }, [faceted, mathMode, sceneDescription]);
+  }, [faceted, mathMode, gigachadMode, sceneDescription]);
 
   return <canvas ref={canvasRef} tabIndex={mathMode ? 0 : undefined} role="img" aria-label={sceneDescription} />;
 }
