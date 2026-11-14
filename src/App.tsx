@@ -9,6 +9,9 @@ import { applyRubiksPanels } from './rubiksPanels';
 import { createLegoFlowers } from './legoFlowers';
 import { createFacetedCubeGeometry } from './createFacetedCubeGeometry';
 import { createSpaceBackground } from './spaceBackground';
+import { createGalaxyBackground } from './galaxyBackground';
+
+type BackgroundMode = 'galaxy' | 'space' | 'original';
 
 const cubePalettes = {
   oman: ['#db161b', '#db161b', '#ffffff', '#ffffff', '#008000', '#008000'],
@@ -18,6 +21,8 @@ const cubePalettes = {
 
 export default function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const backgroundMode = useRef<BackgroundMode>('galaxy');
+  const changeBackground = useRef<(mode: BackgroundMode) => void>(() => {});
   // Preserve the spherical mode; opt into the additional faces with ?shape=faceted.
   const parameters = new URLSearchParams(window.location.search);
   const requestedPalette = parameters.get('cubeColors');
@@ -37,7 +42,15 @@ export default function App() {
     const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
     const scene = new THREE.Scene();
     const spaceBackground = createSpaceBackground();
-    scene.background = spaceBackground;
+    const galaxy = createGalaxyBackground();
+    scene.add(galaxy);
+    const applyBackground = () => {
+      galaxy.visible = backgroundMode.current === 'galaxy';
+      scene.background = backgroundMode.current === 'space'
+        ? spaceBackground
+        : new THREE.Color('#111318');
+    };
+    applyBackground();
 
     const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
     camera.position.z = 5;
@@ -80,9 +93,21 @@ export default function App() {
     }
     let angle = 45;
     const describeMath = () => {
-      if (math) canvas.setAttribute('aria-label', sceneDescription + '. ' + math.update(angle));
+      const sky = backgroundMode.current === 'galaxy'
+        ? 'against a galaxy with two black holes'
+        : backgroundMode.current === 'space' ? 'against a star-filled space sky' : 'against a dark sky';
+      canvas.setAttribute('aria-label',
+        sceneDescription.replace('against a star-filled space sky', sky)
+        + (math ? '. ' + math.update(angle) : ''));
     };
     describeMath();
+    changeBackground.current = (mode) => {
+      backgroundMode.current = mode;
+      applyBackground();
+      describeMath();
+      // Also update immediately when reduced motion has stopped the loop.
+      renderer.render(scene, camera);
+    };
     const changeAngle = (step: number) => {
       angle = (angle + step + 360) % 360;
       describeMath();
@@ -151,6 +176,7 @@ export default function App() {
     const resize = () => {
       const { clientWidth: width, clientHeight: height } = canvas;
       camera.aspect = width / height;
+      galaxy.material.uniforms.aspect.value = camera.aspect;
       // Fit both jumping ring systems (including jelly stretch), their orbit, and the stationary flower border in either orientation.
       const orbitExtent = objectOffset + orbitRadius + jumpHeight + 0.45 + 2.0;
       const flowerBounds = new THREE.Box3().setFromObject(flowers.group);
@@ -246,9 +272,27 @@ export default function App() {
       materials.forEach((material) => material.dispose());
       cats.forEach(({ texture }) => texture.dispose());
       spaceBackground.dispose();
+      galaxy.geometry.dispose();
+      galaxy.material.dispose();
+      changeBackground.current = () => {};
       renderer.dispose();
     };
   }, [faceted, mathMode, gigachadMode, palette, sceneDescription]);
 
-  return <canvas ref={canvasRef} tabIndex={mathMode ? 0 : undefined} role="img" aria-label={sceneDescription} />;
+  return <>
+    <canvas ref={canvasRef} tabIndex={mathMode ? 0 : undefined} role="img" aria-label={sceneDescription} />
+    <label className="background-selector">
+      Background
+      <select defaultValue={backgroundMode.current} onChange={(event) => {
+        const mode = event.target.value;
+        if (mode === 'galaxy' || mode === 'space' || mode === 'original') {
+          changeBackground.current(mode);
+        }
+      }}>
+        <option value="galaxy">Galaxy & black holes</option>
+        <option value="space">Star-filled space</option>
+        <option value="original">Original dark</option>
+      </select>
+    </label>
+  </>;
 }
