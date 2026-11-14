@@ -29,6 +29,17 @@ then returns to its selected theme. This output tint preserves the underlying
 material colors and textures and runs even when reduced motion pauses rotation.
 Unmounting clears the timer and tint.
 
+## Origami butterfly
+
+Select `?shape=butterfly`, or focus the canvas and press **B**, to unfold six
+cube faces into paper wings and a faceted body on both objects. **B** replays
+the unfolding; **S** restores the selected sphere, faceted or math shape.
+The wings retain the selected palette, refreshable cats, animal/eye overlays,
+Rubik panels and optional Gigachad texture. Rings, apples, Batman accessories,
+math diagrams, orbit/jelly motion, flowers, mirror and background selection
+remain in place. Reduced motion shows fully unfolded, stationary wings.
+No background is replaced.
+
 Requires Node.js 22.12+ and pnpm 12.4.1.
 
 Both objects default to Omani flag colours (red, white and green), with opposite material regions sharing a colour. Add `?cubeColors=purple` for the existing purple palette, `?cubeColors=blue` for the original blue palette, or `?cubeColors=oman` for the Omani palette. Unknown values use Omani colours. These options combine with the existing shapes and themes, for example `?shape=faceted&theme=math&cubeColors=purple`. Only the base material colours change: cat textures, animal overlays, Rubik’s panels, rings, flowers, background and motion are preserved. Lighting and texture layers modulate the displayed colours.
