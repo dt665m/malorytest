@@ -1,5 +1,21 @@
 # Live demo starter
 
+## Green cubes
+
+Choose **Green cubes** in the **Presentation** selector, or open
+`?theme=green-cube`. This opt-in presentation shows both objects as plain,
+solid green rotating cubes on a dark green background, with no textures,
+accessories, scenery, jelly deformation, jumping, or periodic color tint.
+Reduced motion stops rotation. The fixed background selector is disabled in
+this mode; B/S transformations are reserved for the original presentation.
+
+Select **Oman National Day** or **None (original)** to leave this mode. Shape
+and palette URL parameters are retained but ignored while Green cubes is
+active; they apply again on exit. Existing theme URLs (math, Gigachad and
+red-batman), shapes, accessories, backgrounds and the default Omani sphere
+remain available unchanged. Selecting a different presentation reloads the
+page when entering or leaving Green cubes.
+
 ## Red Batman
 
 Select `?theme=red-batman` to give both rotating objects red Batman cowls,

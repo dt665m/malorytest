@@ -34,6 +34,7 @@ export default function App() {
   const changeBackground = useRef<(mode: BackgroundMode) => void>(() => {});
   // Preserve the spherical mode; opt into the additional faces with ?shape=faceted.
   const parameters = new URLSearchParams(window.location.search);
+  const greenCubeMode = parameters.get('theme') === 'green-cube';
   const isRedBatman = parameters.get('theme') === 'red-batman';
   const requestedPalette = parameters.get('cubeColors');
   const palette = requestedPalette === 'blue' || requestedPalette === 'purple'
@@ -43,7 +44,7 @@ export default function App() {
   // Keep all existing themes intact by opting into the translucent math view.
   const gigachadMode = parameters.get('theme') === 'gigachad';
   const mathMode = parameters.get('theme') === 'math';
-  const shape = readShapeMode(window.location.search, mathMode ? 'cube' : 'sphere');
+  const shape = greenCubeMode ? 'cube' : readShapeMode(window.location.search, mathMode ? 'cube' : 'sphere');
   const initiallyButterfly = shape === 'butterfly';
   const faceted = shape === 'faceted';
   const catMode = shape === 'cat';
@@ -54,8 +55,10 @@ export default function App() {
     : rectangleMode ? 'cubes stretching into rectangles after two minutes'
     : animalButterflyMode ? 'butterflies with rounded wings'
     : faceted ? '26-face beveled cubes' : isCube ? 'cubes' : 'spheres';
-  const sceneDescription = `Two rotating, jumping ${colourDescription} jelly ${shapeDescription} wearing blue baseball caps with an apple at each of eight corner directions and Saturn-like rings that bounce, squash and wobble moving in a circle with six Rubik’s-style 3×3 panelled regions, each with a golden slit-eyed cat, laughing eagle and laughing turtle; the cats change every full turn; surrounded by colorful brick-built flowers above a framed floor mirror reflecting the scene, against a star-filled space sky${gigachadMode ? '; with monochrome Gigachad portraits layered on each region' : ''}${isRedBatman ? '; wearing red Batman cowls with pointed ears, white eyes, bat emblems and capes' : ''}; an Omani desert eagle lands on the first object and pecks at it; with a five-second green tint every thirty seconds`;
-  const [theme, setTheme] = useState<'oman-national-day' | 'original'>('oman-national-day');
+  const sceneDescription = greenCubeMode
+    ? 'Two plain green cubes rotating against a dark green background. Reduced motion stops rotation.'
+    : `Two rotating, jumping ${colourDescription} jelly ${shapeDescription} wearing blue baseball caps with an apple at each of eight corner directions and Saturn-like rings that bounce, squash and wobble moving in a circle with six Rubik’s-style 3×3 panelled regions, each with a golden slit-eyed cat, laughing eagle and laughing turtle; the cats change every full turn; surrounded by colorful brick-built flowers above a framed floor mirror reflecting the scene, against a star-filled space sky${gigachadMode ? '; with monochrome Gigachad portraits layered on each region' : ''}${isRedBatman ? '; wearing red Batman cowls with pointed ears, white eyes, bat emblems and capes' : ''}; an Omani desert eagle lands on the first object and pecks at it; with a five-second green tint every thirty seconds`;
+  const [theme, setTheme] = useState<'oman-national-day' | 'original'>(greenCubeMode || parameters.get('celebration') === 'none' ? 'original' : 'oman-national-day');
 
   useEffect(() => {
     const canvas = canvasRef.current!;
@@ -68,9 +71,9 @@ export default function App() {
     scene.add(starfield.stars);
     const applyBackground = () => {
       // The galaxy already draws small stars and masks them at its event horizons.
-      starfield.stars.visible = backgroundMode.current !== 'galaxy';
-      galaxy.visible = backgroundMode.current === 'galaxy';
-      scene.background = backgroundMode.current === 'space'
+      starfield.stars.visible = !greenCubeMode && backgroundMode.current !== 'galaxy';
+      galaxy.visible = !greenCubeMode && backgroundMode.current === 'galaxy';
+      scene.background = greenCubeMode ? new THREE.Color('#071b10') : backgroundMode.current === 'space'
         ? spaceBackground
         : new THREE.Color('#111318');
     };
@@ -82,6 +85,7 @@ export default function App() {
 
     const mirror = createMirror();
     scene.add(mirror.group);
+    mirror.group.visible = !greenCubeMode;
 
     // Keep shape selection independent of the shared artwork and accessories.
     // Explicit sphere mode also overrides the math theme's default cube shape.
@@ -91,12 +95,12 @@ export default function App() {
     const cats = Array.from({ length: 6 }, (_, face) => createCatTexture(face));
     // Preserve the six geometry groups, UV maps and every layered animal effect.
     const materials = cats.map(({ texture }, face) => new THREE.MeshStandardMaterial({
-      color: cubePalettes[palette][face],
-      map: texture,
+      color: greenCubeMode ? '#35d466' : cubePalettes[palette][face],
+      map: greenCubeMode ? null : texture,
     }));
-    materials.forEach(applyRubiksPanels);
-    const disposeAnimals = addLaughingAnimals(materials);
-    const disposeCatEyes = addCatEyes(materials);
+    if (!greenCubeMode) materials.forEach(applyRubiksPanels);
+    const disposeAnimals = greenCubeMode ? () => {} : addLaughingAnimals(materials);
+    const disposeCatEyes = greenCubeMode ? () => {} : addCatEyes(materials);
     const disposeGigachadTheme = gigachadMode ? addGigachadTheme(materials) : null;
     const cube = new THREE.Mesh(geometry, materials);
     // Retain the six materials, their maps, and all layered shader effects.
@@ -120,7 +124,7 @@ export default function App() {
         sceneDescription.replace('against a star-filled space sky', sky)
         + (math ? '. ' + math.update(angle) : '')
         + (butterflyMode ? '. The surfaces unfold into gently flapping origami butterflies.' : '')
-        + ' Press B to unfold the butterflies or S to restore the selected original shape.');
+        + (greenCubeMode ? '' : ' Press B to unfold the butterflies or S to restore the selected original shape.'));
     };
     describeMath();
     changeBackground.current = (mode) => {
@@ -222,6 +226,10 @@ export default function App() {
       butterflies.forEach(({ group }) => { group.visible = butterflyMode; });
     };
     applyShape();
+    // Presentation-only visibility: retain resources and the legacy scene paths.
+    if (greenCubeMode) objects.forEach((object) => {
+      object.children.forEach((child) => { child.visible = false; });
+    });
     // Keep the orbit and jump independent of the geometry and local rotation.
     const orbitRadius = 0.65;
     const jumpHeight = 0.65;
@@ -237,6 +245,7 @@ export default function App() {
 
     const flowers = createLegoFlowers();
     scene.add(flowers.group);
+    flowers.group.visible = !greenCubeMode;
     // A stylized desert eagle: sandy brown plumage, dark flight feathers,
     // a hooked golden bill and gripping talons. It stays independent of the
     // rotating surface so future cube materials and scenery remain untouched.
@@ -297,6 +306,7 @@ export default function App() {
       return wing;
     });
     scene.add(eagle);
+    eagle.visible = !greenCubeMode;
 
     // Sample the surface and cap, but not rings, apples or other accessories.
     // The eagle remains upright while its perch follows every ancestor transform.
@@ -362,7 +372,7 @@ export default function App() {
         Math.abs(flowerBounds.min.y), Math.abs(flowerBounds.max.y),
       );
       // Include the wider mirror and leave space for the reflected objects.
-      const sceneExtent = Math.max(orbitExtent, flowerExtent, 7);
+      const sceneExtent = greenCubeMode ? 3.5 : Math.max(orbitExtent, flowerExtent, 7);
       const halfFov = THREE.MathUtils.degToRad(camera.fov / 2);
       camera.position.z = Math.max(
         5,
@@ -371,7 +381,7 @@ export default function App() {
       // Keep a downward view at every viewport size so the floor reflection
       // remains visible rather than flattening as the camera moves back.
       camera.position.y = camera.position.z * 0.65;
-      camera.lookAt(0, -1.8, 0);
+      camera.lookAt(0, greenCubeMode ? 0 : -1.8, 0);
       camera.updateProjectionMatrix();
       // Keep the sky centered as the camera backs away to fit the full scene.
       starfield.stars.position.copy(camera.position);
@@ -394,7 +404,7 @@ export default function App() {
     const updateGreenPhase = () => {
       const elapsed = performance.now() - start;
       const phase = elapsed % greenPeriod;
-      const isGreen = elapsed >= greenPeriod && phase < greenDuration;
+      const isGreen = !greenCubeMode && elapsed >= greenPeriod && phase < greenDuration;
       canvas.classList.toggle('green-phase', isGreen);
       const nextBoundary = isGreen ? greenDuration : greenPeriod;
       greenTimer = window.setTimeout(updateGreenPhase, nextBoundary - phase);
@@ -483,7 +493,17 @@ export default function App() {
         root.position.y = -0.45 + lift * 0.9;
         root.rotation.z = wobble * 0.06;
       });
-      poseEagle(elapsed);
+      if (greenCubeMode) {
+        orbit.position.set(0, 0, 0);
+        jumpRoot.position.y = 0;
+        jellyRoots.forEach((root) => {
+          root.position.y = 0;
+          root.scale.set(1, 1, 1);
+          root.rotation.set(0, 0, 0);
+        });
+      } else {
+        poseEagle(elapsed);
+      }
       renderer.render(scene, camera);
     };
     const updateMotion = () => {
@@ -494,7 +514,7 @@ export default function App() {
         if ((catMode || animalButterflyMode) && !butterflyMode) {
           objects.forEach((object) => object.rotation.set(0.15, 0, 0));
         }
-        orbit.position.set(orbitRadius, 0, 0);
+        orbit.position.set(greenCubeMode ? 0 : orbitRadius, 0, 0);
         jumpRoot.position.y = 0;
         jellyRoots.forEach((root) => {
           root.position.y = 0;
@@ -506,7 +526,7 @@ export default function App() {
       }
     };
     const selectMode = (event: KeyboardEvent) => {
-      if (event.altKey || event.ctrlKey || event.metaKey || event.repeat) return;
+      if (greenCubeMode || event.altKey || event.ctrlKey || event.metaKey || event.repeat) return;
       const key = event.key.toLowerCase();
       if (key !== 'b' && key !== 's') return;
       butterflyMode = key === 'b';
@@ -569,14 +589,14 @@ export default function App() {
       eagleMaterials.forEach((plumage) => plumage.dispose());
       renderer.dispose();
     };
-  }, [initiallyButterfly, catMode, rectangleMode, animalButterflyMode, faceted, isCube, mathMode, gigachadMode, isRedBatman, palette, sceneDescription]);
+  }, [greenCubeMode, initiallyButterfly, catMode, rectangleMode, animalButterflyMode, faceted, isCube, mathMode, gigachadMode, isRedBatman, palette, sceneDescription]);
 
   // Celebration is a separate layer: switching it never rebuilds the scene,
   // changes its materials/accessories, or takes ownership of the background.
   return (
     <main className="experience" data-theme={theme}>
-      <canvas ref={canvasRef} tabIndex={0} title="B: unfold butterflies · S: restore selected shape" role="img" aria-label={sceneDescription} />
-      {theme === 'oman-national-day' && (
+      <canvas ref={canvasRef} tabIndex={0} title={greenCubeMode ? 'Green cubes' : 'B: unfold butterflies · S: restore selected shape'} role="img" aria-label={sceneDescription} />
+      {!greenCubeMode && theme === 'oman-national-day' && (
         <section className="national-day" aria-label="Oman National Day celebration">
           <div className="national-day__ribbons" aria-hidden="true" />
           <header className="national-day__greeting">
@@ -591,23 +611,39 @@ export default function App() {
       <div className="scene-controls">
     <label className="background-selector">
       Background
-      <select defaultValue={backgroundMode.current} onChange={(event) => {
+      <select disabled={greenCubeMode} defaultValue={greenCubeMode ? 'green' : backgroundMode.current} onChange={(event) => {
         const mode = event.target.value;
         if (mode === 'galaxy' || mode === 'space' || mode === 'original') {
           changeBackground.current(mode);
         }
       }}>
+        {greenCubeMode && <option value="green">Dark green (fixed)</option>}
         <option value="galaxy">Galaxy & black holes</option>
         <option value="space">Star-filled space</option>
         <option value="original">Original dark</option>
       </select>
     </label>
       <label className="theme-picker">
-        Celebration
+        Presentation
         <select
-          value={theme}
-          onChange={(event) => setTheme(event.target.value === 'oman-national-day' ? 'oman-national-day' : 'original')}
+          value={greenCubeMode ? 'green-cube' : theme}
+          onChange={(event) => {
+            const value = event.target.value;
+            if (value === 'green-cube' || greenCubeMode) {
+              const url = new URL(window.location.href);
+              if (value === 'green-cube') url.searchParams.set('theme', 'green-cube');
+              else {
+                url.searchParams.delete('theme');
+                if (value === 'original') url.searchParams.set('celebration', 'none');
+                else url.searchParams.delete('celebration');
+              }
+              window.location.assign(url);
+            } else {
+              setTheme(value === 'oman-national-day' ? 'oman-national-day' : 'original');
+            }
+          }}
         >
+          <option value="green-cube">Green cubes</option>
           <option value="oman-national-day">Oman National Day</option>
           <option value="original">None (original)</option>
         </select>
