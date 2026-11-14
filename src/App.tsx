@@ -6,6 +6,7 @@ import { addLaughingAnimals } from './laughingAnimals';
 import { applyRubiksPanels } from './rubiksPanels';
 import { createLegoFlowers } from './legoFlowers';
 import { createFacetedCubeGeometry } from './createFacetedCubeGeometry';
+import { createSpaceBackground } from './spaceBackground';
 
 export default function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -16,7 +17,8 @@ export default function App() {
     const canvas = canvasRef.current!;
     const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color('#111318');
+    const spaceBackground = createSpaceBackground();
+    scene.background = spaceBackground;
 
     const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
     camera.position.z = 5;
@@ -183,10 +185,11 @@ export default function App() {
       geometry.dispose();
       materials.forEach((material) => material.dispose());
       cats.forEach(({ texture }) => texture.dispose());
+      spaceBackground.dispose();
       renderer.dispose();
     };
   }, [faceted]);
 
   const shapeDescription = faceted ? '26-face beveled cubes' : 'spheres';
-  return <canvas ref={canvasRef} role="img" aria-label={`Two rotating, jumping purple jelly ${shapeDescription} with Saturn-like rings that bounce, squash and wobble moving in a circle with six Rubik’s-style 3×3 panelled regions, each with a golden slit-eyed cat, laughing eagle and laughing turtle; the cats change every full turn; surrounded by colorful brick-built flowers`} />;
+  return <canvas ref={canvasRef} role="img" aria-label={`Two rotating, jumping purple jelly ${shapeDescription} with Saturn-like rings that bounce, squash and wobble moving in a circle with six Rubik’s-style 3×3 panelled regions, each with a golden slit-eyed cat, laughing eagle and laughing turtle; the cats change every full turn; surrounded by colorful brick-built flowers against a star-filled space sky`} />;
 }
