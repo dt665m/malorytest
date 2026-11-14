@@ -13,3 +13,26 @@ canvas {
   width: 100%;
   height: 100%;
 }
+
+.background-selector {
+  position: fixed;
+  top: 1rem;
+  left: 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  max-width: calc(100% - 3rem);
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+  background: #111318e6;
+  color: #fff;
+  font: 0.875rem system-ui, sans-serif;
+}
+
+.background-selector select {
+  max-width: 100%;
+  padding: 0.35rem;
+  color-scheme: dark;
+  font: inherit;
+}
