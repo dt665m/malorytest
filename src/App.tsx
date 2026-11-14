@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { createCatTexture } from './catTexture';
+import { addCatEyes } from './catEyes';
 import { addLaughingAnimals } from './laughingAnimals';
 import { applyRubiksPanels } from './rubiksPanels';
 import { createLegoFlowers } from './legoFlowers';
@@ -39,6 +40,7 @@ export default function App() {
     const materials = cats.map(({ texture }) => new THREE.MeshStandardMaterial({ color: '#9333ea', map: texture }));
     materials.forEach(applyRubiksPanels);
     const disposeAnimals = addLaughingAnimals(materials);
+    const disposeCatEyes = addCatEyes(materials);
     const cube = new THREE.Mesh(geometry, materials);
 
     cube.rotation.set(0.4, 0.5, 0);
@@ -150,6 +152,7 @@ export default function App() {
       renderer.setAnimationLoop(null);
       window.removeEventListener('resize', resize);
       motion.removeEventListener('change', updateMotion);
+      disposeCatEyes();
       disposeAnimals();
       flowers.dispose();
       geometry.dispose();
@@ -160,5 +163,5 @@ export default function App() {
   }, [faceted]);
 
   const shapeDescription = faceted ? '26-face beveled cubes' : 'spheres';
-  return <canvas ref={canvasRef} role="img" aria-label={`Two rotating, jumping purple jelly ${shapeDescription} that bounce, squash and wobble moving in a circle with six Rubik’s-style 3×3 panelled regions, each with a cat, laughing eagle and laughing turtle; the cats change every full turn; surrounded by colorful brick-built flowers`} />;
+  return <canvas ref={canvasRef} role="img" aria-label={`Two rotating, jumping purple jelly ${shapeDescription} that bounce, squash and wobble moving in a circle with six Rubik’s-style 3×3 panelled regions, each with a golden slit-eyed cat, laughing eagle and laughing turtle; the cats change every full turn; surrounded by colorful brick-built flowers`} />;
 }
