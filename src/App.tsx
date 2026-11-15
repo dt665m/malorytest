@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { createBlueCap } from './blueCap';
+import { createOmanFlag } from './omanFlag';
 import { createOrigami } from './origami';
 import { addRedBatman } from './redBatman';
 import { addCornerApples } from './cornerApples';
@@ -57,7 +58,7 @@ export default function App() {
     : faceted ? '26-face beveled cubes' : isCube ? 'cubes' : 'spheres';
   const sceneDescription = greenCubeMode
     ? 'Two plain green cubes rotating against a dark green background. Reduced motion stops rotation.'
-    : `Two rotating, jumping ${colourDescription} jelly ${shapeDescription} wearing blue baseball caps with an apple at each of eight corner directions and Saturn-like rings that bounce, squash and wobble moving in a circle with six Rubik’s-style 3×3 panelled regions, each with a golden slit-eyed cat, laughing eagle and laughing turtle; the cats change every full turn; surrounded by colorful brick-built flowers above a framed floor mirror reflecting the scene, against a star-filled space sky${gigachadMode ? '; with monochrome Gigachad portraits layered on each region' : ''}${isRedBatman ? '; wearing red Batman cowls with pointed ears, white eyes, bat emblems and capes' : ''}; an Omani desert eagle lands on the first object and pecks at it; with a five-second green tint every thirty seconds`;
+    : `Two rotating, jumping ${colourDescription} jelly ${shapeDescription} each carrying an Oman flag on an attached silver pole, with a red hoist bearing the white khanjar and crossed swords and white, red and green horizontal stripes, wearing blue baseball caps with an apple at each of eight corner directions and Saturn-like rings that bounce, squash and wobble moving in a circle with six Rubik’s-style 3×3 panelled regions, each with a golden slit-eyed cat, laughing eagle and laughing turtle; the cats change every full turn; surrounded by colorful brick-built flowers above a framed floor mirror reflecting the scene, against a star-filled space sky${gigachadMode ? '; with monochrome Gigachad portraits layered on each region' : ''}${isRedBatman ? '; wearing red Batman cowls with pointed ears, white eyes, bat emblems and capes' : ''}; an Omani desert eagle lands on the first object and pecks at it; with a five-second green tint every thirty seconds`;
   const [theme, setTheme] = useState<'oman-national-day' | 'original'>(greenCubeMode || parameters.get('celebration') === 'none' ? 'original' : 'oman-national-day');
 
   useEffect(() => {
@@ -193,6 +194,10 @@ export default function App() {
       cube.add(ring);
       return ring;
     });
+    // Attach before cloning so both planets carry the same complete flag.
+    // Loading redraws once even when reduced motion has stopped animation.
+    const omanFlag = createOmanFlag(() => renderer.render(scene, camera));
+    cube.add(omanFlag.object);
     // Cloning also shares ring geometry/materials; dispose those only once.
     // Share the six layered materials so both objects receive every cat refresh.
     const secondCube = cube.clone();
@@ -565,6 +570,7 @@ export default function App() {
       canvas.removeEventListener('keydown', onKeyDown);
       // The cloned object's diagram shares these resources; dispose only once.
       blueCap.dispose();
+      omanFlag.dispose();
       disposeCostume?.();
       disposeCornerApples();
       math?.dispose();
